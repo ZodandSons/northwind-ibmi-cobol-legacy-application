@@ -1,0 +1,20 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER SUPMSTCP  SUPPLIER MASTER
+      *  LAYOUT MUST MATCH FILE SUPMST - CHANGE BOTH TOGETHER
+      *  KEY: SMSUP#
+      *----------------------------------------------------------------
+       01  SUPMST-REC.
+           05  SM-KEY.
+               10  SM-SUP-NO            PIC S9(5) COMP-3.
+           05  SM-NAME              PIC X(40).
+           05  SM-CONT              PIC X(30).
+           05  SM-TITL              PIC X(30).
+           05  SM-ADDR              PIC X(60).
+           05  SM-CITY              PIC X(15).
+           05  SM-REGN              PIC X(15).
+           05  SM-POST              PIC X(10).
+           05  SM-CNTY              PIC X(15).
+           05  SM-PHON              PIC X(24).
+           05  SM-FAX               PIC X(24).
+           05  SM-HOME              PIC X(80).
+           05  SM-STAT              PIC X(1).

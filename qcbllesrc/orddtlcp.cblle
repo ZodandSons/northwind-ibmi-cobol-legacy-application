@@ -1,0 +1,14 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER ORDDTLCP  ORDER DETAIL
+      *  LAYOUT MUST MATCH FILE ORDDTL - CHANGE BOTH TOGETHER
+      *  KEY: ODORD#, ODLIN#
+      *----------------------------------------------------------------
+       01  ORDDTL-REC.
+           05  OD-KEY.
+               10  OD-ORD-NO            PIC S9(7) COMP-3.
+               10  OD-LIN-NO            PIC S9(3) COMP-3.
+           05  OD-PRD-NO            PIC S9(5) COMP-3.
+           05  OD-QTY               PIC S9(5) COMP-3.
+           05  OD-PRIC              PIC S9(7)V9(2) COMP-3.
+           05  OD-DISC              PIC S9(1)V9(2) COMP-3.
+           05  OD-EXT               PIC S9(9)V9(2) COMP-3.

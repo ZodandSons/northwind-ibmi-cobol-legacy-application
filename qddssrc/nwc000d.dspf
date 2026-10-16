@@ -1,0 +1,44 @@
+     A* ********************************************************************
+     A* NWC000D - Northwind (Dallas) COBOL main menu  PG 04/91
+     A* ********************************************************************
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      PRINT
+     A          R MENU                      CA03(03 'Exit')
+     A                                  1  2'NWC000D'
+     A                                  1 27'NORTHWIND TRADERS - DALLAS'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3 30'MAIN MENU'
+     A                                      DSPATR(HI)
+     A                                  5  4'MASTER FILES'
+     A                                      DSPATR(UL)
+     A                                  6  6'1. Customers'
+     A                                  7  6'2. Employees'
+     A                                  8  6'3. Suppliers'
+     A                                  9  6'4. Products'
+     A                                 10  6'5. Regions'
+     A                                 11  6'6. Shippers'
+     A                                 12  6'7. Product categories'
+     A                                 13  6'8. Sales territories'
+     A                                 14  6'9. Customer types'
+     A                                  5 44'ORDERS'
+     A                                      DSPATR(UL)
+     A                                  6 46'10. Order entry'
+     A                                  7 46'11. Order inquiry'
+     A                                  9 44'REPORTS'
+     A                                      DSPATR(UL)
+     A                                 10 46'12. Customer list (batch)'
+     A                                 12 44'OTHER'
+     A                                      DSPATR(UL)
+     A                                 13 46'90. Sign off'
+     A                                 20  2'Option ===>'
+     A            MOPT           2Y 0B 20 14
+     A                                      EDTCDE(Z)
+     A                                      DSPATR(PC)
+     A                                 22  2'F3=Exit'
+     A                                      COLOR(BLU)
+     A            MMSG          78A  O 23  2
+     A                                      DSPATR(HI)

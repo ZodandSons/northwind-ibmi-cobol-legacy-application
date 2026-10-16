@@ -1,0 +1,270 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC500.
+       AUTHOR.        A. WASHINGTON.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  08/14/98.
+      *****************************************************************
+      *  CODE TABLE MAINTENANCE - ALL SMALL TABLES LIVE IN CODTBL
+      *
+      *  PARAMETER: TABLE TYPE  REG SHP CAT TER DEM  (FROM MENU)
+      *  08/14/98 AW         NEW - REPLACES 4 SEPARATE PROGRAMS
+      *  02/02/02 AW   AW02  TERRITORY MUST POINT TO A REGION
+      *****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC500D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT CODTBL ASSIGN TO DATABASE-CODTBL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS CT-KEY
+               FILE STATUS IS WS-CODTBL-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  CODTBL
+           LABEL RECORDS ARE STANDARD.
+           COPY CODTBLCP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-X                        PIC 9(3)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-CODTBL-STAT              PIC XX    VALUE SPACES.
+       77  WS-ERR                      PIC X     VALUE "N".
+       77  WS-MSG-LINE                 PIC X(78) VALUE SPACES.
+       77  WS-DTL-MSG                  PIC X(78) VALUE SPACES.
+       77  WS-CODE                     PIC X(10) VALUE SPACES.
+       77  WS-REGION                   PIC X(10) VALUE SPACES.
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  SFLREC-I-AREA.
+           COPY DDS-SFLREC-I OF NWC500D.
+       01  SFLREC-O-AREA.
+           COPY DDS-SFLREC-O OF NWC500D.
+       01  SFLCTL-O-AREA.
+           COPY DDS-SFLCTL-O OF NWC500D.
+       01  FMT01-O-AREA.
+           COPY DDS-FMT01-O OF NWC500D.
+       01  DTLREC-I-AREA.
+           COPY DDS-DTLREC-I OF NWC500D.
+       01  DTLREC-O-AREA.
+           COPY DDS-DTLREC-O OF NWC500D.
+      *  TABLE NAMES - SEARCHED WITH THE TYPE PASSED IN
+       01  WS-TYPE-VALUES.
+           05  FILLER  PIC X(33) VALUE "REGREGIONS".
+           05  FILLER  PIC X(33) VALUE "SHPSHIPPERS".
+           05  FILLER  PIC X(33) VALUE "CATPRODUCT CATEGORIES".
+           05  FILLER  PIC X(33) VALUE "TERSALES TERRITORIES".
+           05  FILLER  PIC X(33) VALUE "DEMCUSTOMER DEMOGRAPHIC TYPES".
+       01  WS-TYPE-TABLE REDEFINES WS-TYPE-VALUES.
+           05  WS-TYPE-ENTRY OCCURS 5 TIMES INDEXED BY TX.
+               10  WS-TYPE-CODE        PIC X(3).
+               10  WS-TYPE-NAME        PIC X(30).
+       LINKAGE SECTION.
+       01  LK-TYPE                     PIC X(3).
+       PROCEDURE DIVISION USING LK-TYPE.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN I-O CODTBL.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE SFLCTL-O-AREA DTLREC-O-AREA.
+           SET TX TO 1.
+           SEARCH WS-TYPE-ENTRY
+               AT END MOVE "UNKNOWN TABLE" TO C1TITL OF SFLCTL-O
+               WHEN WS-TYPE-CODE(TX) = LK-TYPE
+                   MOVE WS-TYPE-NAME(TX) TO C1TITL OF SFLCTL-O.
+      *  WHICH EXTRA FIELDS DOES THIS TABLE USE (HARD CODED)
+           MOVE B"1" TO WS-IND(61).
+           MOVE B"1" TO WS-IND(62).
+           IF LK-TYPE = "SHP"
+               MOVE B"0" TO WS-IND(61)
+               MOVE "PHONE" TO C1ALTH OF SFLCTL-O.
+           IF LK-TYPE = "CAT"
+               MOVE B"0" TO WS-IND(61)
+               MOVE "LONG DESCRIPTION" TO C1ALTH OF SFLCTL-O.
+           IF LK-TYPE = "TER"
+               MOVE B"0" TO WS-IND(62)
+               MOVE "REGION" TO C1ALTH OF SFLCTL-O.
+           PERFORM 1000-LOAD THRU 1000-EXIT.
+       0100-SHOW.
+           MOVE WS-MSG-LINE TO MSGLIN OF FMT01-O.
+           WRITE DSP-REC FROM FMT01-O-AREA FORMAT IS "FMT01"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO WS-MSG-LINE.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END.
+           IF WS-IND(06) = B"1"
+               PERFORM 4000-ADD THRU 4000-EXIT.
+           PERFORM 2000-OPTIONS THRU 2000-EXIT.
+           PERFORM 1000-LOAD THRU 1000-EXIT.
+           GO TO 0100-SHOW.
+       9000-END.
+           CLOSE DSPFILE CODTBL.
+           GOBACK.
+      *---------------------------------------------------------------
+       1000-LOAD.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           MOVE B"0" TO WS-IND(32).
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE LK-TYPE TO CT-TYPE.
+           MOVE SPACES TO CT-CODE.
+           START CODTBL KEY IS NOT LESS THAN CT-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ CODTBL NEXT RECORD AT END GO TO 1000-DONE.
+           IF CT-TYPE NOT = LK-TYPE GO TO 1000-DONE.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO S1OPT OF SFLREC-O.
+           MOVE CT-CODE TO S1CODE OF SFLREC-O H1CODE OF SFLREC-O.
+           MOVE CT-DESC TO S1DESC OF SFLREC-O.
+           IF LK-TYPE = "TER"
+               MOVE CT-ALT2 TO S1ALT OF SFLREC-O
+           ELSE
+               MOVE CT-ALT1 TO S1ALT OF SFLREC-O.
+           WRITE SUBFILE DSP-REC FROM SFLREC-O-AREA FORMAT IS "SFLREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 200 GO TO 1000-READ.
+       1000-DONE.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO MOVE B"1" TO WS-IND(31).
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       2000-OPTIONS.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO SFLREC-I-AREA FORMAT IS "SFLREC"
+               AT END GO TO 2000-EXIT.
+           MOVE H1CODE OF SFLREC-I TO WS-CODE.
+           IF S1OPT OF SFLREC-I = "2"
+               PERFORM 3000-CHANGE THRU 3000-EXIT.
+      *  DELETE - NO CONFIRMATION, NO WHERE-USED CHECK
+           IF S1OPT OF SFLREC-I = "4"
+               MOVE LK-TYPE TO CT-TYPE
+               MOVE WS-CODE TO CT-CODE
+               DELETE CODTBL RECORD INVALID KEY CONTINUE END-DELETE
+               MOVE "CODE DELETED" TO WS-MSG-LINE.
+           GO TO 2000-OPTIONS.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       3000-CHANGE.
+           MOVE LK-TYPE TO CT-TYPE.
+           MOVE WS-CODE TO CT-CODE.
+           READ CODTBL INVALID KEY GO TO 3000-EXIT.
+           MOVE "CHANGE" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE CT-CODE TO D1CODE OF DTLREC-O.
+           MOVE CT-DESC TO D1DESC OF DTLREC-O.
+           MOVE CT-ALT1 TO D1ALT1 OF DTLREC-O.
+           MOVE CT-ALT2 TO D1ALT2 OF DTLREC-O.
+       3000-SHOW.
+           PERFORM 7500-SHOW THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1" GO TO 3000-EXIT.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 3000-SHOW.
+      *  AW02 - THE REGION CHECK READ ANOTHER RECORD - READ AGAIN       AW02
+           MOVE LK-TYPE TO CT-TYPE.                                     AW02
+           MOVE WS-CODE TO CT-CODE.                                     AW02
+           READ CODTBL INVALID KEY GO TO 3000-EXIT.                     AW02
+           MOVE D1DESC OF DTLREC-I TO CT-DESC.
+           MOVE D1ALT1 OF DTLREC-I TO CT-ALT1.
+           MOVE D1ALT2 OF DTLREC-I TO CT-ALT2.
+           REWRITE CODTBL-REC INVALID KEY GO TO 3000-EXIT.
+           MOVE "CODE CHANGED" TO WS-MSG-LINE.
+       3000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       4000-ADD.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "ADD" TO D1MODE OF DTLREC-O.
+           MOVE B"0" TO WS-IND(40).
+       4000-SHOW.
+           PERFORM 7500-SHOW THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1" GO TO 4000-EXIT.
+           IF D1CODE OF DTLREC-I = SPACES
+               MOVE B"1" TO WS-IND(51)
+               MOVE "CODE IS REQUIRED" TO WS-DTL-MSG
+               GO TO 4000-SHOW.
+           MOVE LK-TYPE TO CT-TYPE.
+           MOVE D1CODE OF DTLREC-I TO CT-CODE.
+           READ CODTBL INVALID KEY GO TO 4000-NEW.
+           MOVE B"1" TO WS-IND(51).
+           MOVE "CODE ALREADY EXISTS" TO WS-DTL-MSG.
+           GO TO 4000-SHOW.
+       4000-NEW.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 4000-SHOW.
+           MOVE LK-TYPE TO CT-TYPE.
+           MOVE D1CODE OF DTLREC-I TO CT-CODE.
+           MOVE D1DESC OF DTLREC-I TO CT-DESC.
+           MOVE D1ALT1 OF DTLREC-I TO CT-ALT1.
+           MOVE D1ALT2 OF DTLREC-I TO CT-ALT2.
+           WRITE CODTBL-REC INVALID KEY
+               MOVE "CODE ALREADY EXISTS" TO WS-MSG-LINE
+               GO TO 4000-EXIT.
+           MOVE "CODE ADDED" TO WS-MSG-LINE.
+       4000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       7500-SHOW.
+           MOVE C1TITL OF SFLCTL-O TO D1TITL OF DTLREC-O.
+           MOVE "Alt data 1 . . ." TO D1L1 OF DTLREC-O.
+           MOVE "Alt data 2 . . ." TO D1L2 OF DTLREC-O.
+           IF LK-TYPE = "SHP"
+               MOVE "Phone  . . . . ." TO D1L1 OF DTLREC-O.
+           IF LK-TYPE = "CAT"
+               MOVE "Long desc  . . ." TO D1L1 OF DTLREC-O.
+           IF LK-TYPE = "TER"
+               MOVE "Region code  . ." TO D1L2 OF DTLREC-O.
+           IF WS-IND(61) = B"1"
+               MOVE SPACES TO D1L1 OF DTLREC-O.
+           IF WS-IND(62) = B"1"
+               MOVE SPACES TO D1L2 OF DTLREC-O.
+           MOVE WS-DTL-MSG TO D1MSG OF DTLREC-O.
+           WRITE DSP-REC FROM DTLREC-O-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DTLREC-I-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE CORRESPONDING DTLREC-I TO DTLREC-O.
+           MOVE SPACES TO WS-DTL-MSG.
+           MOVE B"0" TO WS-IND(51).
+           MOVE B"0" TO WS-IND(52).
+           MOVE B"0" TO WS-IND(54).
+       7500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       8000-EDIT.
+           MOVE "N" TO WS-ERR.
+           IF D1DESC OF DTLREC-I = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(52)
+               MOVE "DESCRIPTION IS REQUIRED" TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF LK-TYPE NOT = "TER" GO TO 8000-EXIT.                      AW02
+           MOVE "REG" TO CT-TYPE.                                       AW02
+           MOVE D1ALT2 OF DTLREC-I TO CT-CODE.                          AW02
+           READ CODTBL                                                  AW02
+               INVALID KEY                                              AW02
+                   MOVE "Y" TO WS-ERR                                   AW02
+                   MOVE B"1" TO WS-IND(54)                              AW02
+                   MOVE "REGION CODE NOT ON FILE" TO WS-DTL-MSG.        AW02
+       8000-EXIT.
+           EXIT.

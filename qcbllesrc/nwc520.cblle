@@ -1,0 +1,191 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC520.
+       AUTHOR.        R. SINGH.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  07/07/08.
+      *****************************************************************
+      *  CUSTOMER DEMOGRAPHIC TYPES
+      *
+      *  PARAMETER: CUSTOMER NUMBER X(5) (FROM NWC100)
+      *  07/07/08 RS         COPY OF NWC510
+      *****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC520D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT CUSDEM ASSIGN TO DATABASE-CUSDEM
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS CD-KEY
+               FILE STATUS IS WS-CUSDEM-STAT.
+           SELECT CUSMST ASSIGN TO DATABASE-CUSMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CM-KEY
+               FILE STATUS IS WS-CUSMST-STAT.
+           SELECT CODTBL ASSIGN TO DATABASE-CODTBL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CT-KEY
+               FILE STATUS IS WS-CODTBL-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  CUSDEM
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSDEMCP.
+       FD  CUSMST
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSMSTCP.
+       FD  CODTBL
+           LABEL RECORDS ARE STANDARD.
+           COPY CODTBLCP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-CUSDEM-STAT              PIC XX    VALUE SPACES.
+       77  WS-CUSMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-CODTBL-STAT              PIC XX    VALUE SPACES.
+       77  WS-MSG-LINE                 PIC X(78) VALUE SPACES.
+       77  WS-CODE                     PIC X(10) VALUE SPACES.
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  SFLREC-I-AREA.
+           COPY DDS-SFLREC-I OF NWC520D.
+       01  SFLREC-O-AREA.
+           COPY DDS-SFLREC-O OF NWC520D.
+       01  SFLCTL-O-AREA.
+           COPY DDS-SFLCTL-O OF NWC520D.
+       01  FMT01-O-AREA.
+           COPY DDS-FMT01-O OF NWC520D.
+       01  ADDREC-I-AREA.
+           COPY DDS-ADDREC-I OF NWC520D.
+       01  ADDREC-O-AREA.
+           COPY DDS-ADDREC-O OF NWC520D.
+       01  WS-MSG-VALUES.
+           05  FILLER  PIC X(40) VALUE "EMPLOYEE NOT ON FILE".
+           05  FILLER  PIC X(40) VALUE "NO TERRITORIES ASSIGNED".
+           05  FILLER  PIC X(40) VALUE "TYPE REMOVED".
+           05  FILLER  PIC X(40) VALUE "TYPE ADDED".
+           05  FILLER  PIC X(40) VALUE "CODE NOT ON FILE".
+           05  FILLER  PIC X(40) VALUE "ALREADY ASSIGNED".
+       01  WS-MSG-TABLE REDEFINES WS-MSG-VALUES.
+           05  WS-MSG                  PIC X(40) OCCURS 6 TIMES.
+       LINKAGE SECTION.
+       01  LK-PARM                     PIC X(5).
+       PROCEDURE DIVISION USING LK-PARM.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE CUSDEM.
+           OPEN INPUT CUSMST CODTBL.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE SFLCTL-O-AREA ADDREC-O-AREA.
+           MOVE LK-PARM TO CM-CUST C1KEY OF SFLCTL-O.
+           READ CUSMST
+               INVALID KEY MOVE WS-MSG(1) TO C1NAME OF SFLCTL-O
+               NOT INVALID KEY MOVE CM-NAME TO C1NAME OF SFLCTL-O
+           END-READ.
+           PERFORM 1000-LOAD THRU 1000-EXIT.
+       0100-SHOW.
+           MOVE WS-MSG-LINE TO MSGLIN OF FMT01-O.
+           WRITE DSP-REC FROM FMT01-O-AREA FORMAT IS "FMT01"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO WS-MSG-LINE.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END.
+           IF WS-IND(06) = B"1"
+               PERFORM 4000-ADD THRU 4000-EXIT.
+           PERFORM 2000-OPTIONS THRU 2000-EXIT.
+           PERFORM 1000-LOAD THRU 1000-EXIT.
+           GO TO 0100-SHOW.
+       9000-END.
+           CLOSE DSPFILE CUSDEM CUSMST CODTBL.
+           GOBACK.
+      *---------------------------------------------------------------
+       1000-LOAD.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           MOVE B"0" TO WS-IND(32).
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE LK-PARM TO CD-CUST.
+           MOVE SPACES TO CD-TYPE.
+           START CUSDEM KEY IS NOT LESS THAN CD-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ CUSDEM NEXT RECORD AT END GO TO 1000-DONE.
+           IF CD-CUST NOT = LK-PARM GO TO 1000-DONE.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO S1OPT OF SFLREC-O.
+           MOVE CD-TYPE TO S1CODE OF SFLREC-O H1CODE OF SFLREC-O.
+           MOVE "DEM" TO CT-TYPE.
+           MOVE CD-TYPE TO CT-CODE.
+           READ CODTBL
+               INVALID KEY MOVE "*NOT ON FILE" TO S1DESC OF SFLREC-O
+               NOT INVALID KEY MOVE CT-DESC TO S1DESC OF SFLREC-O
+           END-READ.
+           WRITE SUBFILE DSP-REC FROM SFLREC-O-AREA FORMAT IS "SFLREC"
+               INDICATORS ARE WS-IND-AREA.
+           GO TO 1000-READ.
+       1000-DONE.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO
+               MOVE B"1" TO WS-IND(31)
+           ELSE
+               MOVE WS-MSG(2) TO WS-MSG-LINE.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       2000-OPTIONS.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO SFLREC-I-AREA FORMAT IS "SFLREC"
+               AT END GO TO 2000-EXIT.
+           IF S1OPT OF SFLREC-I = "4"
+               MOVE LK-PARM TO CD-CUST
+               MOVE H1CODE OF SFLREC-I TO CD-TYPE
+               DELETE CUSDEM RECORD INVALID KEY CONTINUE END-DELETE
+               MOVE WS-MSG(3) TO WS-MSG-LINE.
+           GO TO 2000-OPTIONS.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+       4000-ADD.
+           MOVE SPACES TO A1CODE OF ADDREC-O A1MSG OF ADDREC-O.
+       4000-SHOW.
+           WRITE DSP-REC FROM ADDREC-O-AREA FORMAT IS "ADDREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO ADDREC-I-AREA FORMAT IS "ADDREC"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(51).
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1" GO TO 4000-EXIT.
+           MOVE A1CODE OF ADDREC-I TO A1CODE OF ADDREC-O WS-CODE.
+           MOVE "DEM" TO CT-TYPE.
+           MOVE WS-CODE TO CT-CODE.
+           READ CODTBL INVALID KEY
+               MOVE B"1" TO WS-IND(51)
+               MOVE WS-MSG(5) TO A1MSG OF ADDREC-O
+               GO TO 4000-SHOW.
+           MOVE LK-PARM TO CD-CUST.
+           MOVE WS-CODE TO CD-TYPE.
+           WRITE CUSDEM-REC INVALID KEY
+               MOVE B"1" TO WS-IND(51)
+               MOVE WS-MSG(6) TO A1MSG OF ADDREC-O
+               GO TO 4000-SHOW.
+           MOVE WS-MSG(4) TO WS-MSG-LINE.
+       4000-EXIT.
+           EXIT.

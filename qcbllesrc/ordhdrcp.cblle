@@ -1,0 +1,25 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER ORDHDRCP  ORDER HEADER
+      *  LAYOUT MUST MATCH FILE ORDHDR - CHANGE BOTH TOGETHER
+      *  KEY: OHORD#
+      *----------------------------------------------------------------
+       01  ORDHDR-REC.
+           05  OH-KEY.
+               10  OH-ORD-NO            PIC S9(7) COMP-3.
+           05  OH-CUST              PIC X(5).
+           05  OH-EMP-NO            PIC S9(5) COMP-3.
+           05  OH-ODAT              PIC S9(7) COMP-3.
+           05  OH-RDAT              PIC S9(7) COMP-3.
+           05  OH-SDAT              PIC S9(7) COMP-3.
+           05  OH-SHPV              PIC X(1).
+           05  OH-FRT               PIC S9(5)V9(2) COMP-3.
+           05  OH-SNAM              PIC X(40).
+           05  OH-SADR              PIC X(60).
+           05  OH-SCTY              PIC X(15).
+           05  OH-SREG              PIC X(15).
+           05  OH-SPST              PIC X(10).
+           05  OH-SCNT              PIC X(15).
+           05  OH-TOTL              PIC S9(9)V9(2) COMP-3.
+           05  OH-STAT              PIC X(1).
+           05  OH-ENTU              PIC X(10).
+           05  OH-ENTD              PIC S9(6).

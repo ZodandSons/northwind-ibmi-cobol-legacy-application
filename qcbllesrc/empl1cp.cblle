@@ -1,0 +1,23 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER EMPL1CP   EMPLOYEES BY NAME (LF EMPMSTL1)
+      *  LAYOUT MUST MATCH FILE EMPMSTL1 - CHANGE BOTH TOGETHER
+      *  KEY: EMLNAM, EMFNAM
+      *----------------------------------------------------------------
+       01  EMPL1-REC.
+           05  E1-EMP-NO            PIC S9(5) COMP-3.
+           05  E1-KEY.
+               10  E1-LNAM              PIC X(20).
+               10  E1-FNAM              PIC X(10).
+           05  E1-TITL              PIC X(30).
+           05  E1-CRTS              PIC X(25).
+           05  E1-BDAT              PIC S9(8) COMP-3.
+           05  E1-HDAT              PIC S9(8) COMP-3.
+           05  E1-ADDR              PIC X(60).
+           05  E1-CITY              PIC X(15).
+           05  E1-REGN              PIC X(15).
+           05  E1-POST              PIC X(10).
+           05  E1-CNTY              PIC X(15).
+           05  E1-HPHN              PIC X(24).
+           05  E1-EXT               PIC X(4).
+           05  E1-RPTO              PIC S9(5) COMP-3.
+           05  E1-STAT              PIC X(1).

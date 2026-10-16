@@ -1,0 +1,36 @@
+     A* ********************************************************************
+     A* NWC190D - Customer select window
+     A* ********************************************************************
+     A* INDARA - USED BY COBOL WITH WORKSTATION-NWC190D-SI
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      PRINT
+     A                                      CA03(03 'Exit')
+     A                                      CA12(12 'Cancel')
+     A          R W1SFL                     SFL
+     A            W1OPT          1A  B  5  2
+     A                                      VALUES(' ' '1')
+     A            W1KEY          5A  O  5  5
+     A            W1NAME        36A  O  5 12
+     A            H1KEY          5A  H
+     A          R W1CTL                     SFLCTL(W1SFL)
+     A                                      SFLSIZ(0301)
+     A                                      SFLPAG(0010)
+     A                                      WINDOW(4 18 15 50)
+     A                                      OVERLAY
+     A  31                                  SFLDSP
+     A  32                                  SFLDSPCTL
+     A  33                                  SFLCLR
+     A  34                                  SFLEND
+     A                                  1  2'Select Customer'
+     A                                      DSPATR(HI)
+     A                                  2  2'Starting name'
+     A            W1POS         20A  B  2 16
+     A                                  3  2'1=Select   F12=Cancel'
+     A                                      COLOR(BLU)
+     A                                  4  2'Opt'
+     A                                      DSPATR(HI)
+     A                                  4 12'Name'
+     A                                      DSPATR(HI)
+     A          R DUMMY                     ASSUME
+     A                                  1  2' '

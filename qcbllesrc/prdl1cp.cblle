@@ -1,0 +1,17 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER PRDL1CP   PRODUCTS BY NAME (LF PRDMSTL1)
+      *  LAYOUT MUST MATCH FILE PRDMSTL1 - CHANGE BOTH TOGETHER
+      *  KEY: PMNAME
+      *----------------------------------------------------------------
+       01  PRDL1-REC.
+           05  PL-PRD-NO            PIC S9(5) COMP-3.
+           05  PL-KEY.
+               10  PL-NAME              PIC X(40).
+           05  PL-SUP-NO            PIC S9(5) COMP-3.
+           05  PL-CATG              PIC S9(3).
+           05  PL-QPU               PIC X(20).
+           05  PL-PRIC              PIC S9(7)V9(2) COMP-3.
+           05  PL-STCK              PIC S9(5) COMP-3.
+           05  PL-ONOR              PIC S9(5) COMP-3.
+           05  PL-ROLV              PIC S9(5) COMP-3.
+           05  PL-DISC              PIC X(1).

@@ -1,0 +1,22 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER CUSMSTCP  CUSTOMER MASTER
+      *  LAYOUT MUST MATCH FILE CUSMST - CHANGE BOTH TOGETHER
+      *  KEY: CMCUST
+      *----------------------------------------------------------------
+       01  CUSMST-REC.
+           05  CM-KEY.
+               10  CM-CUST              PIC X(5).
+           05  CM-NAME              PIC X(40).
+           05  CM-CONT              PIC X(30).
+           05  CM-TITL              PIC X(30).
+           05  CM-ADDR              PIC X(60).
+           05  CM-CITY              PIC X(15).
+           05  CM-REGN              PIC X(15).
+           05  CM-POST              PIC X(10).
+           05  CM-CNTY              PIC X(15).
+           05  CM-PHON              PIC X(24).
+           05  CM-FAX               PIC X(24).
+           05  CM-STAT              PIC X(1).
+           05  CM-CRDT              PIC S9(6).
+           05  CM-CHDT              PIC S9(6).
+           05  CM-CHUS              PIC X(10).

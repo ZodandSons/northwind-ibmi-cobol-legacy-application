@@ -1,0 +1,9 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER EMPTERCP  EMPLOYEE TERRITORIES
+      *  LAYOUT MUST MATCH FILE EMPTER - CHANGE BOTH TOGETHER
+      *  KEY: ETEMP#, ETTERR
+      *----------------------------------------------------------------
+       01  EMPTER-REC.
+           05  ET-KEY.
+               10  ET-EMP-NO            PIC S9(5) COMP-3.
+               10  ET-TERR              PIC X(10).

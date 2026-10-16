@@ -1,0 +1,141 @@
+     A* ********************************************************************
+     A* NWC400D - Product Master Maintenance
+     A* ********************************************************************
+     A* INDARA - USED BY COBOL WITH WORKSTATION-NWC400D-SI
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      PRINT
+     A                                      CA03(03 'Exit')
+     A                                      CA12(12 'Cancel')
+     A          R SFLREC                    SFL
+     A            S1OPT          1A  B  8  3
+     A                                      VALUES(' ' '2' '4' '5')
+     A            S1PRD          5Y 0O  8  7
+     A                                      EDTCDE(Z)
+     A            S1NAME        32A  O  8 14
+     A            S1PRIC         9Y 2O  8 48
+     A                                      EDTCDE(1)
+     A            S1STCK         5Y 0O  8 62
+     A                                      EDTCDE(J)
+     A            S1DISC         1A  O  8 71
+     A            H1KEY          5S 0H
+     A          R SFLCTL                    SFLCTL(SFLREC)
+     A                                      SFLSIZ(0501)
+     A                                      SFLPAG(0012)
+     A                                      CA06(06 'Add')
+     A                                      OVERLAY
+     A  31                                  SFLDSP
+     A  32                                  SFLDSPCTL
+     A  33                                  SFLCLR
+     A  34                                  SFLEND
+     A                                  1  2'NWC400D'
+     A                                  1 27'Product Master Maintenance'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3  2'Position to name . .'
+     A            C1POS         20A  B  3 23
+     A                                  5  2'2=Change 4=Delete 5=Display'
+     A                                      COLOR(BLU)
+     A                                  7  2'Opt'
+     A                                      DSPATR(HI UL)
+     A                                  7  7'Prod#'
+     A                                      DSPATR(HI UL)
+     A                                  7 14'Product name'
+     A                                      DSPATR(HI UL)
+     A                                  7 48'Unit price'
+     A                                      DSPATR(HI UL)
+     A                                  7 62'Stock'
+     A                                      DSPATR(HI UL)
+     A                                  7 71'D'
+     A                                      DSPATR(HI UL)
+     A          R FMT01                     OVERLAY
+     A                                 22  2'F3=Exit   F6=Add   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            MSGLIN        78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R DTLREC
+     A                                  1  2'NWC400D'
+     A                                  1 27'Product Master Maintenance'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A            D1MODE        10A  O  3  2
+     A                                      DSPATR(RI)
+     A                                  5  2'Product no. . .'
+     A            D1PRD          5Y 0B  5 20
+     A                                      EDTCDE(Z)
+     A  41                                  DSPATR(PR)
+     A  40                                  DSPATR(PR)
+     A  51                                  DSPATR(RI PC)
+     A                                  6  2'Product name . .'
+     A            D1NAME        40A  B  6 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  52                                  DSPATR(RI PC)
+     A                                  7  2'Supplier . . . .'
+     A            D1SUP          5Y 0B  7 20
+     A                                      EDTCDE(Z)
+     A  41                                  DSPATR(PR)
+     A  53                                  DSPATR(RI PC)
+     A            D1SUPN        35A  O  7 28
+     A                                  8  2'Category . . . .'
+     A            D1CATG         3Y 0B  8 20
+     A                                      EDTCDE(Z)
+     A  41                                  DSPATR(PR)
+     A  54                                  DSPATR(RI PC)
+     A            D1CATN        35A  O  8 26
+     A                                  9  2'Qty per unit . .'
+     A            D1QPU         20A  B  9 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  55                                  DSPATR(RI PC)
+     A                                 10  2'Unit price . . .'
+     A            D1PRIC         9Y 2B 10 20
+     A                                      EDTCDE(1)
+     A  41                                  DSPATR(PR)
+     A  56                                  DSPATR(RI PC)
+     A                                 11  2'Units in stock .'
+     A            D1STCK         5Y 0B 11 20
+     A                                      EDTCDE(J)
+     A  41                                  DSPATR(PR)
+     A  57                                  DSPATR(RI PC)
+     A                                 12  2'Units on order .'
+     A            D1ONOR         5Y 0B 12 20
+     A                                      EDTCDE(J)
+     A  41                                  DSPATR(PR)
+     A  58                                  DSPATR(RI PC)
+     A                                 13  2'Reorder level .'
+     A            D1ROLV         5Y 0B 13 20
+     A                                      EDTCDE(J)
+     A  41                                  DSPATR(PR)
+     A  59                                  DSPATR(RI PC)
+     A                                 14  2'Discontinued . .'
+     A            D1DISC         1A  B 14 20
+     A  41                                  DSPATR(PR)
+     A  60                                  DSPATR(RI PC)
+     A                                 22  2'F3=Exit   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            D1MSG         78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R DLTREC
+     A                                  1  2'NWC400D'
+     A                                  1 27'Product Master Maintenance'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  6 10'Delete product'
+     A                                      DSPATR(HI)
+     A            D2KEY          5A  O  6 30
+     A            D2NAME        40A  O  7 30
+     A                                 10 10'Are you sure (Y/N) ?'
+     A            D2CONF         1A  B 10 32
+     A                                      VALUES('Y' 'N')
+     A                                 22  2'F12=Cancel'
+     A                                      COLOR(BLU)

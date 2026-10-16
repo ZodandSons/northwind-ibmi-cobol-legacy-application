@@ -1,0 +1,611 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC200.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  05/15/91.
+      ****************************************************************
+      *  EMPLOYEE MASTER MAINTENANCE
+      *
+      *  MODIFICATION LOG
+      *  05/15/91 PG         CLONED FROM NWC100
+      *  09/30/95 PG   PG95  MOVED TO NORTHWIND FILES (EMPMST, EMPNOT)
+      *  01/12/00 AW   AW00  Y2K - BIRTH/HIRE DATES ARE YYYYMMDD ON FILE
+      *  03/30/05 AW   AW05  OPTION 9 = TERRITORIES (CALL NWC510)
+      *
+      *  INDICATORS (WS-IND):  03 EXIT  06 ADD  12 CANCEL
+      *    31 SFLDSP  32 SFLDSPCTL  33 SFLCLR  34 SFLEND
+      *    40 PROTECT KEY  41 PROTECT ALL  51-66 FIELD IN ERROR
+      ****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       SPECIAL-NAMES.
+           CLASS PHONE-CHARS IS "0" THRU "9" " " "(" ")" "-" "." "+".
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC200D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT EMPMST ASSIGN TO DATABASE-EMPMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS EM-KEY
+               FILE STATUS IS WS-PF-STAT.
+           SELECT EMPMSTL1 ASSIGN TO DATABASE-EMPMSTL1
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS E1-KEY
+               WITH DUPLICATES
+               FILE STATUS IS WS-LF-STAT.
+           SELECT EMPNOT ASSIGN TO DATABASE-EMPNOT
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS EN-KEY
+               FILE STATUS IS WS-NOT-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  EMPMST
+           LABEL RECORDS ARE STANDARD.
+           COPY EMPMSTCP.
+       FD  EMPMSTL1
+           LABEL RECORDS ARE STANDARD.
+           COPY EMPL1CP.
+       FD  EMPNOT
+           LABEL RECORDS ARE STANDARD.
+           COPY EMPNOTCP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-X                        PIC 9(3)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-PF-STAT                  PIC XX    VALUE SPACES.
+       77  WS-LF-STAT                  PIC XX    VALUE SPACES.
+       77  WS-ERR                      PIC X     VALUE "N".
+       77  WS-SAVE-POS                 PIC X(20) VALUE SPACES.
+       77  WS-MSG-LINE                 PIC X(78) VALUE SPACES.
+       77  WS-DTL-MSG                  PIC X(78) VALUE SPACES.
+       77  WS-KEY                      PIC S9(5) VALUE ZERO.
+       77  WS-HIGH                     PIC S9(5) VALUE ZERO.
+       01  WS-TODAY-AREA.
+           05  WS-TODAY                PIC 9(6).
+           05  WS-TODAY-R REDEFINES WS-TODAY.
+               10  WS-T-YY             PIC 99.
+               10  WS-T-MM             PIC 99.
+               10  WS-T-DD             PIC 99.
+       01  WS-MDY                      PIC 9(6)  VALUE ZERO.
+      *  INDICATOR AREA FOR THE -SI DISPLAY FILE
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  SFLREC-I-AREA.
+           COPY DDS-SFLREC-I OF NWC200D.
+       01  SFLREC-O-AREA.
+           COPY DDS-SFLREC-O OF NWC200D.
+       01  SFLCTL-I-AREA.
+           COPY DDS-SFLCTL-I OF NWC200D.
+       01  SFLCTL-O-AREA.
+           COPY DDS-SFLCTL-O OF NWC200D.
+       01  FMT01-O-AREA.
+           COPY DDS-FMT01-O OF NWC200D.
+       01  DTLREC-I-AREA.
+           COPY DDS-DTLREC-I OF NWC200D.
+       01  DTLREC-O-AREA.
+           COPY DDS-DTLREC-O OF NWC200D.
+       01  DLTREC-I-AREA.
+           COPY DDS-DLTREC-I OF NWC200D.
+       01  DLTREC-O-AREA.
+           COPY DDS-DLTREC-O OF NWC200D.
+       01  NOTREC-I-AREA.
+           COPY DDS-NOTREC-I OF NWC200D.
+       01  NOTREC-O-AREA.
+           COPY DDS-NOTREC-O OF NWC200D.
+      *  MESSAGES
+       01  WS-MSG-VALUES.
+           05  FILLER                  PIC X(40) VALUE
+               "EMPLOYEE NOT FOUND".
+           05  FILLER                  PIC X(40) VALUE
+               "EMPLOYEE CHANGED".
+           05  FILLER                  PIC X(40) VALUE
+               "EMPLOYEE ADDED".
+           05  FILLER                  PIC X(40) VALUE
+               "EMPLOYEE DELETED".
+           05  FILLER                  PIC X(40) VALUE
+               "EMPLOYEE NUMBER ALREADY USED".
+           05  FILLER                  PIC X(40) VALUE
+               "NO EMPLOYEES ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "LAST NAME IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "FIRST NAME IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "EMPLOYEE NUMBER IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "DATE IS NOT VALID".
+           05  FILLER                  PIC X(40) VALUE
+               "MANAGER NOT ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "NOTES SAVED".
+       01  WS-MSG-TABLE REDEFINES WS-MSG-VALUES.
+           05  WS-MSG                  PIC X(40) OCCURS 12 TIMES.
+       77  WS-NOT-STAT                 PIC XX    VALUE SPACES.
+       77  WS-PARM-EMP                 PIC S9(5) COMP-3 VALUE ZERO.
+       01  WS-EMP-SAVE                 PIC X(300).
+      *  MMDDYYYY SCREEN DATE AND YYYYMMDD FILE DATE                    AW00
+       01  WS-DATE8                    PIC 9(8)  VALUE ZERO.            AW00
+       01  WS-DATE8-R REDEFINES WS-DATE8.                               AW00
+           05  WS-D8-MM                PIC 99.                          AW00
+           05  WS-D8-DD                PIC 99.                          AW00
+           05  WS-D8-YYYY              PIC 9(4).                        AW00
+       01  WS-YMD8                     PIC 9(8)  VALUE ZERO.            AW00
+       01  WS-YMD8-R REDEFINES WS-YMD8.                                 AW00
+           05  WS-Y8-YYYY              PIC 9(4).                        AW00
+           05  WS-Y8-MM                PIC 99.                          AW00
+           05  WS-Y8-DD                PIC 99.                          AW00
+      *  DAYS PER MONTH - FEB IS ALWAYS 29                              AW00
+       01  WS-DAYS-VALUES              PIC X(24)                        AW00
+           VALUE "312931303130313130313031".                            AW00
+       01  WS-DAYS-TABLE REDEFINES WS-DAYS-VALUES.                      AW00
+           05  WS-DAYS                 PIC 99 OCCURS 12 TIMES.          AW00
+       PROCEDURE DIVISION.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN I-O EMPMST.
+           OPEN INPUT EMPMSTL1.
+           OPEN I-O EMPNOT.
+           ACCEPT WS-TODAY FROM DATE.
+           COMPUTE WS-MDY = WS-T-MM * 10000 + WS-T-DD * 100 + WS-T-YY.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE SFLCTL-I-AREA SFLCTL-O-AREA.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+       0100-SHOW-LIST.
+           MOVE WS-MSG-LINE TO MSGLIN OF FMT01-O.
+           WRITE DSP-REC FROM FMT01-O-AREA FORMAT IS "FMT01"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO SFLCTL-I-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO WS-MSG-LINE.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END-PGM.
+           IF WS-IND(06) = B"1"
+               PERFORM 4000-ADD THRU 4000-EXIT
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           IF C1POS OF SFLCTL-I NOT = WS-SAVE-POS
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           PERFORM 2000-OPTIONS THRU 2000-EXIT.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+           GO TO 0100-SHOW-LIST.
+       9000-END-PGM.
+           CLOSE DSPFILE EMPMST EMPMSTL1 EMPNOT.
+           GOBACK.
+      *---------------------------------------------------------------
+      *  1000 - LOAD THE SUBFILE FROM THE POSITION-TO NAME (MAX 300)
+      *---------------------------------------------------------------
+       1000-LOAD-SFL.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           MOVE B"0" TO WS-IND(32).
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE C1POS OF SFLCTL-I TO WS-SAVE-POS.
+           MOVE WS-SAVE-POS TO C1POS OF SFLCTL-O.
+           MOVE SPACES TO E1-KEY.
+           MOVE WS-SAVE-POS TO E1-LNAM.
+           START EMPMSTL1 KEY IS NOT LESS THAN E1-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ EMPMSTL1 NEXT RECORD AT END GO TO 1000-DONE.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO S1OPT OF SFLREC-O.
+           MOVE E1-EMP-NO TO S1EMP OF SFLREC-O.
+           MOVE E1-LNAM TO S1LNAM OF SFLREC-O.
+           MOVE E1-FNAM TO S1FNAM OF SFLREC-O.
+           MOVE E1-TITL TO S1TITL OF SFLREC-O.
+           MOVE E1-EMP-NO TO H1KEY OF SFLREC-O.
+           WRITE SUBFILE DSP-REC FROM SFLREC-O-AREA FORMAT IS "SFLREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 300 GO TO 1000-READ.
+       1000-DONE.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO
+               MOVE B"1" TO WS-IND(31)
+           ELSE
+               MOVE WS-MSG(6) TO WS-MSG-LINE.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2000 - PROCESS OPTIONS TYPED IN THE SUBFILE
+      *---------------------------------------------------------------
+       2000-OPTIONS.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO SFLREC-I-AREA FORMAT IS "SFLREC"
+               AT END GO TO 2000-EXIT.
+           MOVE H1KEY OF SFLREC-I TO WS-KEY.
+           IF S1OPT OF SFLREC-I = "2"
+               PERFORM 3000-CHANGE THRU 3000-EXIT.
+           IF S1OPT OF SFLREC-I = "4"
+               PERFORM 5000-DELETE THRU 5000-EXIT.
+           IF S1OPT OF SFLREC-I = "5"
+               PERFORM 6000-DISPLAY THRU 6000-EXIT.
+           IF S1OPT OF SFLREC-I = "7"
+               PERFORM 8300-NOTES THRU 8300-EXIT.
+           IF S1OPT OF SFLREC-I = "9"
+               PERFORM 8400-TERRITORIES THRU 8400-EXIT.
+           GO TO 2000-OPTIONS.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  3000 - CHANGE.  RECORD STAYS LOCKED WHILE THE SCREEN IS UP
+      *---------------------------------------------------------------
+       3000-CHANGE.
+           MOVE WS-KEY TO EM-EMP-NO.
+           READ EMPMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "CHANGE" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE B"0" TO WS-IND(41).
+           PERFORM 7000-FILE-TO-SCREEN THRU 7000-EXIT.
+       3000-SHOW.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 3000-EXIT.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 3000-SHOW.
+      *  READ AGAIN - EDIT MAY HAVE READ OTHER RECORDS OF THIS FILE
+           MOVE WS-KEY TO EM-EMP-NO.
+           READ EMPMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           PERFORM 7100-SCREEN-TO-FILE THRU 7100-EXIT.
+           REWRITE EMPMST-REC
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           MOVE WS-MSG(2) TO WS-MSG-LINE.
+       3000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4000 - ADD
+      *---------------------------------------------------------------
+       4000-ADD.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "ADD" TO D1MODE OF DTLREC-O.
+           MOVE B"0" TO WS-IND(40).
+           MOVE B"0" TO WS-IND(41).
+       4000-SHOW.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 4000-EXIT.
+           IF D1EMP OF DTLREC-I = ZERO
+               MOVE B"1" TO WS-IND(51)
+               MOVE WS-MSG(9) TO WS-DTL-MSG
+               GO TO 4000-SHOW.
+      *  DUPLICATE CHECK (A FOUND RECORD IS NOW LOCKED)
+           MOVE D1EMP OF DTLREC-I TO EM-EMP-NO.
+           READ EMPMST INVALID KEY GO TO 4000-NEW.
+           MOVE B"1" TO WS-IND(51).
+           MOVE WS-MSG(5) TO WS-DTL-MSG.
+           GO TO 4000-SHOW.
+       4000-NEW.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 4000-SHOW.
+           INITIALIZE EMPMST-REC.
+           MOVE D1EMP OF DTLREC-I TO EM-EMP-NO.
+           PERFORM 7100-SCREEN-TO-FILE THRU 7100-EXIT.
+           MOVE SPACE TO EM-STAT.
+           WRITE EMPMST-REC
+               INVALID KEY MOVE WS-MSG(5) TO WS-MSG-LINE
+                           GO TO 4000-EXIT.
+           MOVE WS-MSG(3) TO WS-MSG-LINE.
+       4000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  5000 - DELETE (NO WHERE-USED CHECK)
+      *---------------------------------------------------------------
+       5000-DELETE.
+           MOVE WS-KEY TO EM-EMP-NO.
+           READ EMPMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 5000-EXIT.
+           INITIALIZE DLTREC-O-AREA.
+           MOVE EM-EMP-NO TO D2KEY OF DLTREC-O.
+           MOVE EM-LNAM TO D2NAME OF DLTREC-O.
+           MOVE "N" TO D2CONF OF DLTREC-O.
+           WRITE DSP-REC FROM DLTREC-O-AREA FORMAT IS "DLTREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DLTREC-I-AREA FORMAT IS "DLTREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-IND(12) = B"1" GO TO 5000-EXIT.
+           IF D2CONF OF DLTREC-I NOT = "Y" GO TO 5000-EXIT.
+           DELETE EMPMST RECORD INVALID KEY GO TO 5000-EXIT.
+      *  NOTES AND TERRITORIES ARE LEFT ON FILE
+           MOVE WS-MSG(4) TO WS-MSG-LINE.
+       5000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  6000 - DISPLAY ONLY (STILL READS FOR UPDATE)
+      *---------------------------------------------------------------
+       6000-DISPLAY.
+           MOVE WS-KEY TO EM-EMP-NO.
+           READ EMPMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 6000-EXIT.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "DISPLAY" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE B"1" TO WS-IND(41).
+           PERFORM 7000-FILE-TO-SCREEN THRU 7000-EXIT.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+       6000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8300 - NOTES: SHOW FIRST 10 LINES, DELETE ALL, WRITE BACK 10
+      *---------------------------------------------------------------
+       8300-NOTES.
+           MOVE WS-KEY TO EM-EMP-NO.
+           READ EMPMST INVALID KEY GO TO 8300-EXIT.
+           INITIALIZE NOTREC-O-AREA.
+           MOVE EM-EMP-NO TO N0EMP OF NOTREC-O.
+           MOVE EM-LNAM TO N0NAME OF NOTREC-O.
+           MOVE ZERO TO WS-X.
+           MOVE WS-KEY TO EN-EMP-NO.
+           MOVE ZERO TO EN-SEQ.
+           START EMPNOT KEY IS NOT LESS THAN EN-KEY
+               INVALID KEY GO TO 8300-SHOW.
+       8300-READ.
+           READ EMPNOT NEXT RECORD AT END GO TO 8300-SHOW.
+           IF EN-EMP-NO NOT = WS-KEY GO TO 8300-SHOW.
+           ADD 1 TO WS-X.
+           IF WS-X = 1 MOVE EN-TEXT TO N01 OF NOTREC-O.
+           IF WS-X = 2 MOVE EN-TEXT TO N02 OF NOTREC-O.
+           IF WS-X = 3 MOVE EN-TEXT TO N03 OF NOTREC-O.
+           IF WS-X = 4 MOVE EN-TEXT TO N04 OF NOTREC-O.
+           IF WS-X = 5 MOVE EN-TEXT TO N05 OF NOTREC-O.
+           IF WS-X = 6 MOVE EN-TEXT TO N06 OF NOTREC-O.
+           IF WS-X = 7 MOVE EN-TEXT TO N07 OF NOTREC-O.
+           IF WS-X = 8 MOVE EN-TEXT TO N08 OF NOTREC-O.
+           IF WS-X = 9 MOVE EN-TEXT TO N09 OF NOTREC-O.
+           IF WS-X = 10 MOVE EN-TEXT TO N10 OF NOTREC-O.
+           GO TO 8300-READ.
+       8300-SHOW.
+           WRITE DSP-REC FROM NOTREC-O-AREA FORMAT IS "NOTREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO NOTREC-I-AREA FORMAT IS "NOTREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 8300-EXIT.
+           MOVE WS-KEY TO EN-EMP-NO.
+           MOVE ZERO TO EN-SEQ.
+           START EMPNOT KEY IS NOT LESS THAN EN-KEY
+               INVALID KEY GO TO 8300-WRITE.
+       8300-DELETE.
+           READ EMPNOT NEXT RECORD AT END GO TO 8300-WRITE.
+           IF EN-EMP-NO NOT = WS-KEY GO TO 8300-WRITE.
+           DELETE EMPNOT RECORD INVALID KEY GO TO 8300-WRITE.
+           GO TO 8300-DELETE.
+       8300-WRITE.
+           IF N01 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 10 TO EN-SEQ
+               MOVE N01 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N02 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 20 TO EN-SEQ
+               MOVE N02 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N03 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 30 TO EN-SEQ
+               MOVE N03 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N04 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 40 TO EN-SEQ
+               MOVE N04 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N05 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 50 TO EN-SEQ
+               MOVE N05 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N06 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 60 TO EN-SEQ
+               MOVE N06 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N07 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 70 TO EN-SEQ
+               MOVE N07 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N08 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 80 TO EN-SEQ
+               MOVE N08 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N09 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 90 TO EN-SEQ
+               MOVE N09 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           IF N10 OF NOTREC-I NOT = SPACES
+               MOVE WS-KEY TO EN-EMP-NO
+               MOVE 100 TO EN-SEQ
+               MOVE N10 OF NOTREC-I TO EN-TEXT
+               WRITE EMPNOT-REC INVALID KEY CONTINUE END-WRITE
+           END-IF.
+           MOVE WS-MSG(12) TO WS-MSG-LINE.
+       8300-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8400 - TERRITORIES                                             AW05
+      *---------------------------------------------------------------
+       8400-TERRITORIES.                                                AW05
+           MOVE WS-KEY TO WS-PARM-EMP.                                  AW05
+           CALL "NWC510" USING WS-PARM-EMP.                             AW05
+       8400-EXIT.                                                       AW05
+           EXIT.                                                        AW05
+      *---------------------------------------------------------------
+      *  8600 - MANAGER NAME.  SAVES/RESTORES THE RECORD AREA           AW00
+      *         BECAUSE THE MANAGER IS IN THE SAME FILE                 AW00
+      *---------------------------------------------------------------
+       8600-MANAGER-NAME.
+           MOVE SPACES TO D1RPNM OF DTLREC-O.
+           IF D1RPTO OF DTLREC-O = ZERO GO TO 8600-EXIT.
+           MOVE EMPMST-REC TO WS-EMP-SAVE.
+           MOVE D1RPTO OF DTLREC-O TO EM-EMP-NO.
+           READ EMPMST
+               INVALID KEY MOVE "*NOT ON FILE" TO D1RPNM OF DTLREC-O
+               NOT INVALID KEY
+                   STRING EM-FNAM DELIMITED BY SPACE
+                          " " DELIMITED BY SIZE
+                          EM-LNAM DELIMITED BY SPACE
+                          INTO D1RPNM OF DTLREC-O
+           END-READ.
+           MOVE WS-EMP-SAVE TO EMPMST-REC.
+       8600-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8700 - CHECK A MMDDYYYY DATE IN WS-DATE8 (ZERO IS OK)          AW00
+      *---------------------------------------------------------------
+       8700-DATE-CHECK.                                                 AW00
+           MOVE "N" TO WS-ERR.                                          AW00
+           IF WS-DATE8 = ZERO GO TO 8700-EXIT.                          AW00
+           IF WS-D8-MM < 1 OR WS-D8-MM > 12                             AW00
+               MOVE "Y" TO WS-ERR                                       AW00
+               GO TO 8700-EXIT.                                         AW00
+           IF WS-D8-DD < 1 OR WS-D8-DD > WS-DAYS(WS-D8-MM)              AW00
+               MOVE "Y" TO WS-ERR.                                      AW00
+       8700-EXIT.                                                       AW00
+           EXIT.                                                        AW00
+      *---------------------------------------------------------------
+      *  7000 - FILE TO SCREEN
+      *---------------------------------------------------------------
+       7000-FILE-TO-SCREEN.
+           MOVE EM-EMP-NO TO D1EMP OF DTLREC-O.
+           MOVE EM-LNAM TO D1LNAM OF DTLREC-O.
+           MOVE EM-FNAM TO D1FNAM OF DTLREC-O.
+           MOVE EM-TITL TO D1TITL OF DTLREC-O.
+           MOVE EM-CRTS TO D1CRTS OF DTLREC-O.
+           MOVE EM-BDAT TO WS-YMD8.
+           MOVE WS-Y8-MM TO WS-D8-MM.
+           MOVE WS-Y8-DD TO WS-D8-DD.
+           MOVE WS-Y8-YYYY TO WS-D8-YYYY.
+           MOVE WS-DATE8 TO D1BDAT OF DTLREC-O.
+           MOVE EM-HDAT TO WS-YMD8.
+           MOVE WS-Y8-MM TO WS-D8-MM.
+           MOVE WS-Y8-DD TO WS-D8-DD.
+           MOVE WS-Y8-YYYY TO WS-D8-YYYY.
+           MOVE WS-DATE8 TO D1HDAT OF DTLREC-O.
+           MOVE EM-ADDR TO D1ADDR OF DTLREC-O.
+           MOVE EM-CITY TO D1CITY OF DTLREC-O.
+           MOVE EM-REGN TO D1REGN OF DTLREC-O.
+           MOVE EM-POST TO D1POST OF DTLREC-O.
+           MOVE EM-CNTY TO D1CNTY OF DTLREC-O.
+           MOVE EM-HPHN TO D1HPHN OF DTLREC-O.
+           MOVE EM-EXT TO D1EXT OF DTLREC-O.
+           MOVE EM-RPTO TO D1RPTO OF DTLREC-O.
+           PERFORM 8600-MANAGER-NAME THRU 8600-EXIT.
+       7000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7100 - SCREEN TO FILE (KEY IS NOT MOVED)
+      *---------------------------------------------------------------
+       7100-SCREEN-TO-FILE.
+           MOVE D1LNAM OF DTLREC-I TO EM-LNAM.
+           MOVE D1FNAM OF DTLREC-I TO EM-FNAM.
+           MOVE D1TITL OF DTLREC-I TO EM-TITL.
+           MOVE D1CRTS OF DTLREC-I TO EM-CRTS.
+           MOVE D1BDAT OF DTLREC-I TO WS-DATE8.
+           MOVE WS-D8-YYYY TO WS-Y8-YYYY.
+           MOVE WS-D8-MM TO WS-Y8-MM.
+           MOVE WS-D8-DD TO WS-Y8-DD.
+           MOVE WS-YMD8 TO EM-BDAT.
+           MOVE D1HDAT OF DTLREC-I TO WS-DATE8.
+           MOVE WS-D8-YYYY TO WS-Y8-YYYY.
+           MOVE WS-D8-MM TO WS-Y8-MM.
+           MOVE WS-D8-DD TO WS-Y8-DD.
+           MOVE WS-YMD8 TO EM-HDAT.
+           MOVE D1ADDR OF DTLREC-I TO EM-ADDR.
+           MOVE D1CITY OF DTLREC-I TO EM-CITY.
+           MOVE D1REGN OF DTLREC-I TO EM-REGN.
+           MOVE D1POST OF DTLREC-I TO EM-POST.
+           MOVE D1CNTY OF DTLREC-I TO EM-CNTY.
+           MOVE D1HPHN OF DTLREC-I TO EM-HPHN.
+           MOVE D1EXT OF DTLREC-I TO EM-EXT.
+           MOVE D1RPTO OF DTLREC-I TO EM-RPTO.
+       7100-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7500 - SHOW THE DETAIL SCREEN AND READ IT BACK
+      *---------------------------------------------------------------
+       7500-SHOW-DETAIL.
+           MOVE WS-DTL-MSG TO D1MSG OF DTLREC-O.
+           WRITE DSP-REC FROM DTLREC-O-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DTLREC-I-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+      *  KEEP WHAT THE USER TYPED IN CASE WE HAVE TO SHOW IT AGAIN
+           MOVE CORRESPONDING DTLREC-I TO DTLREC-O.
+           MOVE SPACES TO WS-DTL-MSG.
+           PERFORM VARYING WS-X FROM 51 BY 1 UNTIL WS-X > 66
+               MOVE B"0" TO WS-IND(WS-X)
+           END-PERFORM.
+       7500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8000 - EDIT THE SCREEN (STOPS AT THE FIRST ERROR)
+      *---------------------------------------------------------------
+       8000-EDIT.
+           MOVE "N" TO WS-ERR.
+           IF D1LNAM OF DTLREC-I = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(52)
+               MOVE WS-MSG(7) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF D1FNAM OF DTLREC-I = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(53)
+               MOVE WS-MSG(8) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           MOVE D1BDAT OF DTLREC-I TO WS-DATE8.                         AW00
+           PERFORM 8700-DATE-CHECK THRU 8700-EXIT.                      AW00
+           IF WS-ERR = "Y"                                              AW00
+               MOVE B"1" TO WS-IND(56)                                  AW00
+               MOVE WS-MSG(10) TO WS-DTL-MSG                            AW00
+               GO TO 8000-EXIT.                                         AW00
+           MOVE D1HDAT OF DTLREC-I TO WS-DATE8.                         AW00
+           PERFORM 8700-DATE-CHECK THRU 8700-EXIT.                      AW00
+           IF WS-ERR = "Y"                                              AW00
+               MOVE B"1" TO WS-IND(57)                                  AW00
+               MOVE WS-MSG(10) TO WS-DTL-MSG                            AW00
+               GO TO 8000-EXIT.                                         AW00
+           PERFORM 8600-MANAGER-NAME THRU 8600-EXIT.
+           IF D1RPNM OF DTLREC-O = "*NOT ON FILE"
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(65)
+               MOVE WS-MSG(11) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+       8000-EXIT.
+           EXIT.

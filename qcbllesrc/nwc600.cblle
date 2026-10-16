@@ -1,0 +1,513 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC600.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  07/01/91.
+      *****************************************************************
+      *  ORDER ENTRY - 10 LINES PER ORDER
+      *
+      *  07/01/91 PG         NEW (DALLAS DIVISION ORDER DESK)
+      *  09/30/95 PG   PG95  MOVED TO NORTHWIND FILES - ORDER NUMBERS
+      *                      FROM DATA AREA NWNXTORD (NWCNXTC)
+      *  01/20/00 AW   AW00  Y2K - DATES CYYMMDD, WINDOW 50
+      *  06/06/01 AW   AW01  DATE CHECK MOVED TO COPY MEMBER DATEPRC
+      *  03/03/02 AW   AW02  RELIEVE STOCK, TOTAL + FREIGHT
+      *
+      *  INDICATORS: 03 EXIT 04 PROMPT 10 ACCEPT 12 CANCEL
+      *              51-55 HEADER ERRORS  61-70 LINE ERRORS
+      *****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC600D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT CUSMST ASSIGN TO DATABASE-CUSMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CM-KEY
+               FILE STATUS IS WS-CUSMST-STAT.
+           SELECT EMPMST ASSIGN TO DATABASE-EMPMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS EM-KEY
+               FILE STATUS IS WS-EMPMST-STAT.
+           SELECT CODTBL ASSIGN TO DATABASE-CODTBL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CT-KEY
+               FILE STATUS IS WS-CODTBL-STAT.
+           SELECT PRDMST ASSIGN TO DATABASE-PRDMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS PM-KEY
+               FILE STATUS IS WS-PRDMST-STAT.
+           SELECT ORDHDR ASSIGN TO DATABASE-ORDHDR
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS OH-KEY
+               FILE STATUS IS WS-ORDHDR-STAT.
+           SELECT ORDDTL ASSIGN TO DATABASE-ORDDTL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS OD-KEY
+               FILE STATUS IS WS-ORDDTL-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  CUSMST
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSMSTCP.
+       FD  EMPMST
+           LABEL RECORDS ARE STANDARD.
+           COPY EMPMSTCP.
+       FD  CODTBL
+           LABEL RECORDS ARE STANDARD.
+           COPY CODTBLCP.
+       FD  PRDMST
+           LABEL RECORDS ARE STANDARD.
+           COPY PRDMSTCP.
+       FD  ORDHDR
+           LABEL RECORDS ARE STANDARD.
+           COPY ORDHDRCP.
+       FD  ORDDTL
+           LABEL RECORDS ARE STANDARD.
+           COPY ORDDTLCP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-CUSMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-EMPMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-CODTBL-STAT              PIC XX    VALUE SPACES.
+       77  WS-PRDMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-ORDHDR-STAT              PIC XX    VALUE SPACES.
+       77  WS-ORDDTL-STAT              PIC XX    VALUE SPACES.
+       77  WS-ERR                      PIC X     VALUE "N".
+       77  WS-I                        PIC 99    VALUE ZERO.
+       77  WS-J                        PIC 99    VALUE ZERO.
+       77  WS-LIN                      PIC 999   VALUE ZERO.
+       77  WS-TOTAL                    PIC S9(9)V99 VALUE ZERO.
+       77  WS-ORD-NO                   PIC S9(7) COMP-3 VALUE ZERO.
+       77  WS-ORD-ED                   PIC Z(6)9.
+       77  WS-PRD-PARM                 PIC S9(5) COMP-3 VALUE ZERO.
+       77  WS-CUST-PARM                PIC X(5)  VALUE SPACES.
+       77  WS-CYMD                     PIC 9(7)  VALUE ZERO.
+       01  WS-TODAY-AREA.
+           05  WS-TODAY                PIC 9(6).
+           05  WS-TODAY-R REDEFINES WS-TODAY.
+               10  WS-T-YY             PIC 99.
+               10  WS-T-MM             PIC 99.
+               10  WS-T-DD             PIC 99.
+      *  MMDDYY WORK DATE - NAMES ARE USED BY COPY MEMBER DATEPRC       AW01
+       01  WS-MDY6                     PIC 9(6)  VALUE ZERO.            AW01
+       01  WS-MDY6-R REDEFINES WS-MDY6.                                 AW01
+           05  WS-M6-MM                PIC 99.                          AW01
+           05  WS-M6-DD                PIC 99.                          AW01
+           05  WS-M6-YY                PIC 99.                          AW01
+       77  WS-DATE-ERR                 PIC X     VALUE "N".             AW01
+       01  WS-MONTH-DAYS               PIC X(24)                        AW01
+           VALUE "312831303130313130313031".                            AW01
+       01  WS-MONTH-TABLE REDEFINES WS-MONTH-DAYS.                      AW01
+           05  WS-MONTH-LEN            PIC 99 OCCURS 12 TIMES.          AW01
+      *  THE 10 ORDER LINES
+       01  WS-LINES.
+           05  WL-LINE OCCURS 10 TIMES.
+               10  WL-PRD              PIC S9(5).
+               10  WL-NAM              PIC X(25).
+               10  WL-QTY              PIC S9(5).
+               10  WL-PRC              PIC S9(5)V99.
+               10  WL-DSC              PIC S9(2).
+               10  WL-EXT              PIC S9(7)V99.
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  HDRREC-I-AREA.
+           COPY DDS-HDRREC-I OF NWC600D.
+       01  HDRREC-O-AREA.
+           COPY DDS-HDRREC-O OF NWC600D.
+       01  LINREC-I-AREA.
+           COPY DDS-LINREC-I OF NWC600D.
+       01  LINREC-O-AREA.
+           COPY DDS-LINREC-O OF NWC600D.
+       PROCEDURE DIVISION.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN INPUT CUSMST EMPMST CODTBL.
+           OPEN I-O PRDMST ORDHDR ORDDTL.
+           MOVE ALL "0" TO WS-IND-AREA.
+           PERFORM 1000-NEW-ORDER THRU 1000-EXIT.
+       0100-HEADER.
+           WRITE DSP-REC FROM HDRREC-O-AREA FORMAT IS "HDRREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO HDRREC-I-AREA FORMAT IS "HDRREC"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE CORRESPONDING HDRREC-I TO HDRREC-O.
+           MOVE SPACES TO H1MSG OF HDRREC-O.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END.
+           IF WS-IND(04) = B"1"
+               MOVE H1CUST OF HDRREC-O TO WS-CUST-PARM
+               CALL "NWC190" USING WS-CUST-PARM
+               MOVE WS-CUST-PARM TO H1CUST OF HDRREC-O
+               GO TO 0100-HEADER.
+           PERFORM 2000-EDIT-HEADER THRU 2000-EXIT.
+           IF WS-ERR = "Y" GO TO 0100-HEADER.
+           MOVE H1CUST OF HDRREC-O TO L0CUST OF LINREC-O.
+           MOVE H1CNAM OF HDRREC-O TO L0CNAM OF LINREC-O.
+           PERFORM 3000-PRICE-LINES THRU 3000-EXIT.
+       0200-LINES.
+           WRITE DSP-REC FROM LINREC-O-AREA FORMAT IS "LINREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO LINREC-I-AREA FORMAT IS "LINREC"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO L0MSG OF LINREC-O.
+           MOVE L0PRT OF LINREC-I TO L0PRT OF LINREC-O.
+           IF WS-IND(03) = B"1" GO TO 9000-END.
+           IF WS-IND(12) = B"1" GO TO 0100-HEADER.
+           PERFORM 2100-SCREEN-TO-TABLE THRU 2100-EXIT.
+           IF WS-IND(04) = B"1"
+               PERFORM 3500-PROMPT-PRODUCT THRU 3500-EXIT
+               PERFORM 3000-PRICE-LINES THRU 3000-EXIT
+               GO TO 0200-LINES.
+           PERFORM 3000-PRICE-LINES THRU 3000-EXIT.
+           IF WS-ERR = "Y" GO TO 0200-LINES.
+           IF WS-IND(10) NOT = B"1" GO TO 0200-LINES.
+           IF WS-TOTAL = ZERO
+               MOVE "NO ITEMS ON THE ORDER" TO L0MSG OF LINREC-O
+               GO TO 0200-LINES.
+           PERFORM 4000-WRITE-ORDER THRU 4000-EXIT.
+           PERFORM 1000-NEW-ORDER THRU 1000-EXIT.
+           GO TO 0100-HEADER.
+       9000-END.
+           CLOSE DSPFILE CUSMST EMPMST CODTBL PRDMST ORDHDR ORDDTL.
+           GOBACK.
+      *---------------------------------------------------------------
+      *  1000 - CLEAR FOR A NEW ORDER (MESSAGE IS KEPT)
+      *---------------------------------------------------------------
+       1000-NEW-ORDER.
+           MOVE H1MSG OF HDRREC-O TO L0MSG OF LINREC-O.
+           INITIALIZE HDRREC-O-AREA HDRREC-I-AREA WS-LINES.
+           MOVE L0MSG OF LINREC-O TO H1MSG OF HDRREC-O.
+           INITIALIZE LINREC-O-AREA LINREC-I-AREA.
+           ACCEPT WS-TODAY FROM DATE.
+           COMPUTE WS-MDY6 = WS-T-MM * 10000 + WS-T-DD * 100 + WS-T-YY.
+           MOVE WS-MDY6 TO H1ODAT OF HDRREC-O.
+           MOVE "1" TO H1SHPV OF HDRREC-O.
+           MOVE "N" TO L0PRT OF LINREC-O.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2000 - EDIT THE HEADER (DELETED CUSTOMERS ARE NOT CHECKED)
+      *---------------------------------------------------------------
+       2000-EDIT-HEADER.
+           MOVE "N" TO WS-ERR.
+           PERFORM VARYING WS-I FROM 51 BY 1 UNTIL WS-I > 55
+               MOVE B"0" TO WS-IND(WS-I)
+           END-PERFORM.
+           MOVE H1CUST OF HDRREC-O TO CM-CUST.
+           READ CUSMST INVALID KEY
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(51)
+               MOVE "CUSTOMER NOT ON FILE" TO H1MSG OF HDRREC-O
+               GO TO 2000-EXIT.
+           MOVE CM-NAME TO H1CNAM OF HDRREC-O.
+      *  SHIP-TO DEFAULTS FROM THE CUSTOMER ONLY WHEN NAME IS BLANK
+           IF H1SNAM OF HDRREC-O = SPACES
+               MOVE CM-NAME TO H1SNAM OF HDRREC-O
+               MOVE CM-ADDR TO H1SADR OF HDRREC-O
+               MOVE CM-CITY TO H1SCTY OF HDRREC-O
+               MOVE CM-REGN TO H1SREG OF HDRREC-O
+               MOVE CM-POST TO H1SPST OF HDRREC-O
+               MOVE CM-CNTY TO H1SCNT OF HDRREC-O.
+           MOVE H1EMP OF HDRREC-O TO EM-EMP-NO.
+           READ EMPMST INVALID KEY
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(52)
+               MOVE "EMPLOYEE NOT ON FILE" TO H1MSG OF HDRREC-O
+               GO TO 2000-EXIT.
+           MOVE SPACES TO H1ENAM OF HDRREC-O.
+           STRING EM-FNAM DELIMITED BY SPACE " " DELIMITED BY SIZE
+                  EM-LNAM DELIMITED BY SPACE INTO H1ENAM OF HDRREC-O.
+           MOVE H1ODAT OF HDRREC-O TO WS-MDY6.                          AW01
+           PERFORM 9500-CHECK-MDY THRU 9500-EXIT.                       AW01
+           IF WS-DATE-ERR = "Y" OR WS-MDY6 = ZERO                       AW01
+               MOVE "Y" TO WS-ERR                                       AW01
+               MOVE B"1" TO WS-IND(53)                                  AW01
+               MOVE "ORDER DATE IS NOT VALID" TO H1MSG OF HDRREC-O      AW01
+               GO TO 2000-EXIT.                                         AW01
+           MOVE H1RDAT OF HDRREC-O TO WS-MDY6.                          AW01
+           PERFORM 9500-CHECK-MDY THRU 9500-EXIT.                       AW01
+           IF WS-DATE-ERR = "Y"                                         AW01
+               MOVE "Y" TO WS-ERR                                       AW01
+               MOVE B"1" TO WS-IND(54)                                  AW01
+               MOVE "REQUIRED DATE IS NOT VALID" TO H1MSG OF HDRREC-O
+               GO TO 2000-EXIT.                                         AW01
+           MOVE "SHP" TO CT-TYPE.
+           MOVE H1SHPV OF HDRREC-O TO CT-CODE.
+           READ CODTBL INVALID KEY
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(55)
+               MOVE "SHIP VIA CODE NOT ON FILE" TO H1MSG OF HDRREC-O
+               GO TO 2000-EXIT.
+           MOVE CT-DESC TO H1SHPN OF HDRREC-O.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2100 - SCREEN LINES TO THE WORK TABLE (ONE FIELD AT A TIME)
+      *---------------------------------------------------------------
+       2100-SCREEN-TO-TABLE.
+           MOVE LPRD01 OF LINREC-I TO WL-PRD(1).
+           MOVE LQTY01 OF LINREC-I TO WL-QTY(1).
+           MOVE LPRC01 OF LINREC-I TO WL-PRC(1).
+           MOVE LDSC01 OF LINREC-I TO WL-DSC(1).
+           MOVE LPRD02 OF LINREC-I TO WL-PRD(2).
+           MOVE LQTY02 OF LINREC-I TO WL-QTY(2).
+           MOVE LPRC02 OF LINREC-I TO WL-PRC(2).
+           MOVE LDSC02 OF LINREC-I TO WL-DSC(2).
+           MOVE LPRD03 OF LINREC-I TO WL-PRD(3).
+           MOVE LQTY03 OF LINREC-I TO WL-QTY(3).
+           MOVE LPRC03 OF LINREC-I TO WL-PRC(3).
+           MOVE LDSC03 OF LINREC-I TO WL-DSC(3).
+           MOVE LPRD04 OF LINREC-I TO WL-PRD(4).
+           MOVE LQTY04 OF LINREC-I TO WL-QTY(4).
+           MOVE LPRC04 OF LINREC-I TO WL-PRC(4).
+           MOVE LDSC04 OF LINREC-I TO WL-DSC(4).
+           MOVE LPRD05 OF LINREC-I TO WL-PRD(5).
+           MOVE LQTY05 OF LINREC-I TO WL-QTY(5).
+           MOVE LPRC05 OF LINREC-I TO WL-PRC(5).
+           MOVE LDSC05 OF LINREC-I TO WL-DSC(5).
+           MOVE LPRD06 OF LINREC-I TO WL-PRD(6).
+           MOVE LQTY06 OF LINREC-I TO WL-QTY(6).
+           MOVE LPRC06 OF LINREC-I TO WL-PRC(6).
+           MOVE LDSC06 OF LINREC-I TO WL-DSC(6).
+           MOVE LPRD07 OF LINREC-I TO WL-PRD(7).
+           MOVE LQTY07 OF LINREC-I TO WL-QTY(7).
+           MOVE LPRC07 OF LINREC-I TO WL-PRC(7).
+           MOVE LDSC07 OF LINREC-I TO WL-DSC(7).
+           MOVE LPRD08 OF LINREC-I TO WL-PRD(8).
+           MOVE LQTY08 OF LINREC-I TO WL-QTY(8).
+           MOVE LPRC08 OF LINREC-I TO WL-PRC(8).
+           MOVE LDSC08 OF LINREC-I TO WL-DSC(8).
+           MOVE LPRD09 OF LINREC-I TO WL-PRD(9).
+           MOVE LQTY09 OF LINREC-I TO WL-QTY(9).
+           MOVE LPRC09 OF LINREC-I TO WL-PRC(9).
+           MOVE LDSC09 OF LINREC-I TO WL-DSC(9).
+           MOVE LPRD10 OF LINREC-I TO WL-PRD(10).
+           MOVE LQTY10 OF LINREC-I TO WL-QTY(10).
+           MOVE LPRC10 OF LINREC-I TO WL-PRC(10).
+           MOVE LDSC10 OF LINREC-I TO WL-DSC(10).
+       2100-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2200 - WORK TABLE TO THE SCREEN
+      *---------------------------------------------------------------
+       2200-TABLE-TO-SCREEN.
+           MOVE WL-PRD(1) TO LPRD01 OF LINREC-O.
+           MOVE WL-NAM(1) TO LNAM01 OF LINREC-O.
+           MOVE WL-QTY(1) TO LQTY01 OF LINREC-O.
+           MOVE WL-PRC(1) TO LPRC01 OF LINREC-O.
+           MOVE WL-DSC(1) TO LDSC01 OF LINREC-O.
+           MOVE WL-EXT(1) TO LEXT01 OF LINREC-O.
+           MOVE WL-PRD(2) TO LPRD02 OF LINREC-O.
+           MOVE WL-NAM(2) TO LNAM02 OF LINREC-O.
+           MOVE WL-QTY(2) TO LQTY02 OF LINREC-O.
+           MOVE WL-PRC(2) TO LPRC02 OF LINREC-O.
+           MOVE WL-DSC(2) TO LDSC02 OF LINREC-O.
+           MOVE WL-EXT(2) TO LEXT02 OF LINREC-O.
+           MOVE WL-PRD(3) TO LPRD03 OF LINREC-O.
+           MOVE WL-NAM(3) TO LNAM03 OF LINREC-O.
+           MOVE WL-QTY(3) TO LQTY03 OF LINREC-O.
+           MOVE WL-PRC(3) TO LPRC03 OF LINREC-O.
+           MOVE WL-DSC(3) TO LDSC03 OF LINREC-O.
+           MOVE WL-EXT(3) TO LEXT03 OF LINREC-O.
+           MOVE WL-PRD(4) TO LPRD04 OF LINREC-O.
+           MOVE WL-NAM(4) TO LNAM04 OF LINREC-O.
+           MOVE WL-QTY(4) TO LQTY04 OF LINREC-O.
+           MOVE WL-PRC(4) TO LPRC04 OF LINREC-O.
+           MOVE WL-DSC(4) TO LDSC04 OF LINREC-O.
+           MOVE WL-EXT(4) TO LEXT04 OF LINREC-O.
+           MOVE WL-PRD(5) TO LPRD05 OF LINREC-O.
+           MOVE WL-NAM(5) TO LNAM05 OF LINREC-O.
+           MOVE WL-QTY(5) TO LQTY05 OF LINREC-O.
+           MOVE WL-PRC(5) TO LPRC05 OF LINREC-O.
+           MOVE WL-DSC(5) TO LDSC05 OF LINREC-O.
+           MOVE WL-EXT(5) TO LEXT05 OF LINREC-O.
+           MOVE WL-PRD(6) TO LPRD06 OF LINREC-O.
+           MOVE WL-NAM(6) TO LNAM06 OF LINREC-O.
+           MOVE WL-QTY(6) TO LQTY06 OF LINREC-O.
+           MOVE WL-PRC(6) TO LPRC06 OF LINREC-O.
+           MOVE WL-DSC(6) TO LDSC06 OF LINREC-O.
+           MOVE WL-EXT(6) TO LEXT06 OF LINREC-O.
+           MOVE WL-PRD(7) TO LPRD07 OF LINREC-O.
+           MOVE WL-NAM(7) TO LNAM07 OF LINREC-O.
+           MOVE WL-QTY(7) TO LQTY07 OF LINREC-O.
+           MOVE WL-PRC(7) TO LPRC07 OF LINREC-O.
+           MOVE WL-DSC(7) TO LDSC07 OF LINREC-O.
+           MOVE WL-EXT(7) TO LEXT07 OF LINREC-O.
+           MOVE WL-PRD(8) TO LPRD08 OF LINREC-O.
+           MOVE WL-NAM(8) TO LNAM08 OF LINREC-O.
+           MOVE WL-QTY(8) TO LQTY08 OF LINREC-O.
+           MOVE WL-PRC(8) TO LPRC08 OF LINREC-O.
+           MOVE WL-DSC(8) TO LDSC08 OF LINREC-O.
+           MOVE WL-EXT(8) TO LEXT08 OF LINREC-O.
+           MOVE WL-PRD(9) TO LPRD09 OF LINREC-O.
+           MOVE WL-NAM(9) TO LNAM09 OF LINREC-O.
+           MOVE WL-QTY(9) TO LQTY09 OF LINREC-O.
+           MOVE WL-PRC(9) TO LPRC09 OF LINREC-O.
+           MOVE WL-DSC(9) TO LDSC09 OF LINREC-O.
+           MOVE WL-EXT(9) TO LEXT09 OF LINREC-O.
+           MOVE WL-PRD(10) TO LPRD10 OF LINREC-O.
+           MOVE WL-NAM(10) TO LNAM10 OF LINREC-O.
+           MOVE WL-QTY(10) TO LQTY10 OF LINREC-O.
+           MOVE WL-PRC(10) TO LPRC10 OF LINREC-O.
+           MOVE WL-DSC(10) TO LDSC10 OF LINREC-O.
+           MOVE WL-EXT(10) TO LEXT10 OF LINREC-O.
+           MOVE WS-TOTAL TO L0TOT OF LINREC-O.
+       2200-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  3000 - PRICE THE LINES.  PRODUCT RECORDS ARE READ FOR UPDATE
+      *         (PRDMST IS OPEN I-O) SO THE LAST ONE STAYS LOCKED
+      *---------------------------------------------------------------
+       3000-PRICE-LINES.
+           MOVE "N" TO WS-ERR.
+           MOVE ZERO TO WS-TOTAL.
+           MOVE B"0" TO WS-IND(61).
+           MOVE B"0" TO WS-IND(62).
+           MOVE B"0" TO WS-IND(63).
+           MOVE B"0" TO WS-IND(64).
+           MOVE B"0" TO WS-IND(65).
+           MOVE B"0" TO WS-IND(66).
+           MOVE B"0" TO WS-IND(67).
+           MOVE B"0" TO WS-IND(68).
+           MOVE B"0" TO WS-IND(69).
+           MOVE B"0" TO WS-IND(70).
+           PERFORM 3100-PRICE-ONE THRU 3100-EXIT
+               VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 10.
+      *  AW02 - TOTAL INCLUDES FREIGHT (NW600R RPG VERSION DOES NOT)    AW02
+           ADD H1FRT OF HDRREC-O TO WS-TOTAL.                           AW02
+           IF WS-ERR = "Y"
+               MOVE "CHECK THE ITEMS IN ERROR" TO L0MSG OF LINREC-O.
+           PERFORM 2200-TABLE-TO-SCREEN THRU 2200-EXIT.
+       3000-EXIT.
+           EXIT.
+       3100-PRICE-ONE.
+           IF WL-PRD(WS-I) = ZERO
+               MOVE SPACES TO WL-NAM(WS-I)
+               MOVE ZERO TO WL-EXT(WS-I)
+               GO TO 3100-EXIT.
+           MOVE WL-PRD(WS-I) TO PM-PRD-NO.
+           READ PRDMST INVALID KEY
+               MOVE "*NOT ON FILE" TO WL-NAM(WS-I)
+               MOVE ZERO TO WL-EXT(WS-I)
+               MOVE "Y" TO WS-ERR
+               COMPUTE WS-J = 60 + WS-I
+               MOVE B"1" TO WS-IND(WS-J)
+               GO TO 3100-EXIT.
+           MOVE PM-NAME TO WL-NAM(WS-I).
+           IF WL-PRC(WS-I) = ZERO MOVE PM-PRIC TO WL-PRC(WS-I).
+           IF WL-QTY(WS-I) = ZERO MOVE 1 TO WL-QTY(WS-I).
+           COMPUTE WL-EXT(WS-I) ROUNDED =
+               WL-PRC(WS-I) * WL-QTY(WS-I) * (100 - WL-DSC(WS-I)) / 100.
+           ADD WL-EXT(WS-I) TO WS-TOTAL.
+       3100-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  3500 - F4: PRODUCT WINDOW, RESULT GOES IN THE FIRST EMPTY LINE
+      *---------------------------------------------------------------
+       3500-PROMPT-PRODUCT.
+           MOVE ZERO TO WS-PRD-PARM.
+           CALL "NWC490" USING WS-PRD-PARM.
+           IF WS-PRD-PARM = ZERO GO TO 3500-EXIT.
+           PERFORM VARYING WS-I FROM 1 BY 1
+                   UNTIL WS-I > 10 OR WL-PRD(WS-I) = ZERO
+               CONTINUE
+           END-PERFORM.
+           IF WS-I > 10
+               MOVE "ORDER IS FULL - 10 LINES" TO L0MSG OF LINREC-O
+           ELSE
+               MOVE WS-PRD-PARM TO WL-PRD(WS-I).
+       3500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4000 - WRITE HEADER, LINES, RELIEVE STOCK.  NO COMMIT.
+      *         ORDER NUMBER FROM NWCNXTC (DATA AREA, NO LOCK)
+      *---------------------------------------------------------------
+       4000-WRITE-ORDER.
+           CALL "NWCNXTC" USING WS-ORD-NO.
+           INITIALIZE ORDHDR-REC.
+           MOVE WS-ORD-NO TO OH-ORD-NO.
+           MOVE H1CUST OF HDRREC-O TO OH-CUST.
+           MOVE H1EMP OF HDRREC-O TO OH-EMP-NO.
+           MOVE H1ODAT OF HDRREC-O TO WS-MDY6.
+           PERFORM 4500-MDY-TO-CYMD THRU 4500-EXIT.
+           MOVE WS-CYMD TO OH-ODAT.
+           MOVE H1RDAT OF HDRREC-O TO WS-MDY6.
+           PERFORM 4500-MDY-TO-CYMD THRU 4500-EXIT.
+           MOVE WS-CYMD TO OH-RDAT.
+           MOVE ZERO TO OH-SDAT.
+           MOVE H1SHPV OF HDRREC-O TO OH-SHPV.
+           MOVE H1FRT OF HDRREC-O TO OH-FRT.
+           MOVE H1SNAM OF HDRREC-O TO OH-SNAM.
+           MOVE H1SADR OF HDRREC-O TO OH-SADR.
+           MOVE H1SCTY OF HDRREC-O TO OH-SCTY.
+           MOVE H1SREG OF HDRREC-O TO OH-SREG.
+           MOVE H1SPST OF HDRREC-O TO OH-SPST.
+           MOVE H1SCNT OF HDRREC-O TO OH-SCNT.
+           MOVE WS-TOTAL TO OH-TOTL.
+           MOVE "O" TO OH-STAT.
+           MOVE "NWC600" TO OH-ENTU.
+           MOVE H1ODAT OF HDRREC-O TO OH-ENTD.
+           WRITE ORDHDR-REC INVALID KEY
+               MOVE "ORDER NUMBER ALREADY USED - CALL I.S." TO
+                    L0MSG OF LINREC-O
+               GO TO 4000-EXIT.
+           MOVE ZERO TO WS-LIN.
+           PERFORM 4100-WRITE-LINE THRU 4100-EXIT
+               VARYING WS-I FROM 1 BY 1 UNTIL WS-I > 10.
+           IF L0PRT OF LINREC-O = "Y"
+               CALL "NWC620C" USING WS-ORD-NO.
+           MOVE WS-ORD-NO TO WS-ORD-ED.
+           MOVE SPACES TO H1MSG OF HDRREC-O.
+           STRING "ORDER " DELIMITED BY SIZE WS-ORD-ED DELIMITED BY SIZE
+                  " ENTERED" DELIMITED BY SIZE INTO H1MSG OF HDRREC-O.
+       4000-EXIT.
+           EXIT.
+       4100-WRITE-LINE.
+           IF WL-PRD(WS-I) = ZERO GO TO 4100-EXIT.
+           ADD 1 TO WS-LIN.
+           INITIALIZE ORDDTL-REC.
+           MOVE WS-ORD-NO TO OD-ORD-NO.
+           MOVE WS-LIN TO OD-LIN-NO.
+           MOVE WL-PRD(WS-I) TO OD-PRD-NO.
+           MOVE WL-QTY(WS-I) TO OD-QTY.
+           MOVE WL-PRC(WS-I) TO OD-PRIC.
+           COMPUTE OD-DISC = WL-DSC(WS-I) / 100.
+           MOVE WL-EXT(WS-I) TO OD-EXT.
+           WRITE ORDDTL-REC INVALID KEY CONTINUE END-WRITE.
+           MOVE WL-PRD(WS-I) TO PM-PRD-NO.                              AW02
+           READ PRDMST INVALID KEY GO TO 4100-EXIT.                     AW02
+           SUBTRACT WL-QTY(WS-I) FROM PM-STCK.                          AW02
+           REWRITE PRDMST-REC INVALID KEY CONTINUE END-REWRITE.         AW02
+       4100-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4500 - MMDDYY TO CYYMMDD.  WINDOW: YY < 50 IS 20YY             AW00
+      *         (THE RPG SIDE USES 40)                                  AW00
+      *---------------------------------------------------------------
+       4500-MDY-TO-CYMD.                                                AW00
+           MOVE ZERO TO WS-CYMD.                                        AW00
+           IF WS-MDY6 = ZERO GO TO 4500-EXIT.                           AW00
+           IF WS-M6-YY < 50                                             AW00
+               MOVE 1000000 TO WS-CYMD.                                 AW00
+           COMPUTE WS-CYMD = WS-CYMD + WS-M6-YY * 10000                 AW00
+                           + WS-M6-MM * 100 + WS-M6-DD.                 AW00
+       4500-EXIT.                                                       AW00
+           EXIT.                                                        AW00
+           COPY DATEPRC.                                                AW01

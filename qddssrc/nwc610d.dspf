@@ -1,0 +1,138 @@
+     A* ********************************************************************
+     A* NWC610D - Order inquiry
+     A* ********************************************************************
+     A* INDARA - USED BY COBOL WITH WORKSTATION-NWC610D-SI
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      PRINT
+     A                                      CA03(03 'Exit')
+     A                                      CA12(12 'Cancel')
+     A          R SFLREC                    SFL
+     A            S1OPT          1A  B  8  3
+     A                                      VALUES(' ' '4' '5' '6')
+     A            S1ORD          7Y 0O  8  6
+     A                                      EDTCDE(Z)
+     A            S1CUST         5A  O  8 14
+     A            S1CNAM        20A  O  8 20
+     A            S1ODAT         6Y 0O  8 41
+     A                                      EDTWRD('  /  /  ')
+     A            S1STAT         1A  O  8 51
+     A            S1TOTL        11Y 2O  8 54
+     A                                      EDTCDE(1)
+     A            H1ORD          7S 0H
+     A          R SFLCTL                    SFLCTL(SFLREC)
+     A                                      SFLSIZ(1000)
+     A                                      SFLPAG(0012)
+     A                                      CA05(05 'Refresh')
+     A                                      OVERLAY
+     A  31                                  SFLDSP
+     A  32                                  SFLDSPCTL
+     A  33                                  SFLCLR
+     A  34                                  SFLEND
+     A                                  1  2'NWC610D'
+     A                                  1 33'Order Inquiry'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3  2'Customer (blank = all) . .'
+     A            C1CUST         5A  B  3 30
+     A                                  5  2'4=Cancel order  5=Display  6=Print'
+     A                                      COLOR(BLU)
+     A                                  5 37'invoice'
+     A                                      COLOR(BLU)
+     A                                  7  2'Opt'
+     A                                      DSPATR(HI UL)
+     A                                  7  6'Order#'
+     A                                      DSPATR(HI UL)
+     A                                  7 14'Cust'
+     A                                      DSPATR(HI UL)
+     A                                  7 20'Name'
+     A                                      DSPATR(HI UL)
+     A                                  7 41'Ordered'
+     A                                      DSPATR(HI UL)
+     A                                  7 50'St'
+     A                                      DSPATR(HI UL)
+     A                                  7 60'Total'
+     A                                      DSPATR(HI UL)
+     A          R FMT01                     OVERLAY
+     A                                 22  2'F3=Exit   F5=Refresh   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            MSGLIN        78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R LINSFL                    SFL
+     A            L1LIN          3Y 0O 11  2
+     A                                      EDTCDE(Z)
+     A            L1PRD          5Y 0O 11  6
+     A                                      EDTCDE(Z)
+     A            L1NAME        25A  O 11 12
+     A            L1QTY          5Y 0O 11 38
+     A                                      EDTCDE(Z)
+     A            L1PRIC         9Y 2O 11 44
+     A                                      EDTCDE(1)
+     A            L1DISC         3Y 2O 11 57
+     A                                      EDTCDE(3)
+     A            L1EXT         11Y 2O 11 62
+     A                                      EDTCDE(1)
+     A          R LINCTL                    SFLCTL(LINSFL)
+     A                                      SFLSIZ(0100)
+     A                                      SFLPAG(0009)
+     A                                      OVERLAY
+     A  35                                  SFLDSP
+     A  36                                  SFLDSPCTL
+     A  37                                  SFLCLR
+     A  38                                  SFLEND
+     A                                  1  2'NWC610D'
+     A                                  1 25'Order Inquiry - Display Order'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3  2'Order'
+     A            D1ORD          7Y 0O  3  9
+     A                                      EDTCDE(Z)
+     A                                      DSPATR(HI)
+     A                                  3 19'Customer'
+     A            D1CUST         5A  O  3 28
+     A            D1CNAM        40A  O  3 34
+     A                                  4  2'Ordered'
+     A            D1ODAT         6Y 0O  4 11
+     A                                      EDTWRD('  /  /  ')
+     A                                  4 22'Shipped'
+     A            D1SDAT         6Y 0O  4 31
+     A                                      EDTWRD('  /  /  ')
+     A                                  4 42'Status'
+     A            D1STAT         1A  O  4 49
+     A                                      DSPATR(HI)
+     A                                  5  2'Ship to'
+     A            D1SNAM        40A  O  5 11
+     A            D1SCTY        15A  O  6 11
+     A            D1SCNT        15A  O  6 27
+     A                                 10  2'Ln'
+     A                                      DSPATR(HI UL)
+     A                                 10  6'Prod#'
+     A                                      DSPATR(HI UL)
+     A                                 10 12'Description'
+     A                                      DSPATR(HI UL)
+     A                                 10 39'Qty'
+     A                                      DSPATR(HI UL)
+     A                                 10 48'Price'
+     A                                      DSPATR(HI UL)
+     A                                 10 56'Disc'
+     A                                      DSPATR(HI UL)
+     A                                 10 66'Extended'
+     A                                      DSPATR(HI UL)
+     A          R DSPFTR                    OVERLAY
+     A                                 21  2'Items'
+     A            D1TOT         11Y 2O 21  8
+     A                                      EDTCDE(1)
+     A                                 21 24'Freight'
+     A            D1FRT          7Y 2O 21 32
+     A                                      EDTCDE(1)
+     A                                 21 43'Stored total'
+     A            D1TOTS        11Y 2O 21 56
+     A                                      EDTCDE(1)
+     A                                 22  2'Enter=Continue   F12=Cancel'
+     A                                      COLOR(BLU)

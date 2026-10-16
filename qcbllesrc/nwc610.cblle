@@ -1,0 +1,331 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC610.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  07/22/91.
+      *****************************************************************
+      *  ORDER INQUIRY
+      *
+      *  07/22/91 PG         NEW
+      *  09/30/95 PG   PG95  MOVED TO NORTHWIND FILES (ORDHDR, ORDDTL)
+      *  01/20/00 AW   AW00  Y2K - DATES ON FILE ARE CYYMMDD
+      *  05/05/04 AW   AW04  CUSTOMER FILTER IN LDA (FROM NWC100)
+      *  02/11/06 RS   RS06  OPTION 4 = CANCEL, PUTS STOCK BACK
+      *  02/11/06 RS   RS06  OPTION 6 = PRINT INVOICE (NWC620C)
+      *
+      *  READS THE WHOLE ORDER FILE EVERY TIME - THERE WAS NO LOGICAL
+      *  BY CUSTOMER WE COULD USE FROM COBOL (SEE ORDHDRL1).
+      *  INDICATORS: 03 EXIT 05 REFRESH 12 CANCEL 31-38 SUBFILES
+      *****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       SPECIAL-NAMES.
+           LOCAL-DATA IS LDA-NAME.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC610D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT ORDHDR ASSIGN TO DATABASE-ORDHDR
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS OH-KEY
+               FILE STATUS IS WS-ORDHDR-STAT.
+           SELECT ORDDTL ASSIGN TO DATABASE-ORDDTL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS OD-KEY
+               FILE STATUS IS WS-ORDDTL-STAT.
+           SELECT CUSMST ASSIGN TO DATABASE-CUSMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CM-KEY
+               FILE STATUS IS WS-CUSMST-STAT.
+           SELECT PRDMST ASSIGN TO DATABASE-PRDMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS PM-KEY
+               FILE STATUS IS WS-PRDMST-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  ORDHDR
+           LABEL RECORDS ARE STANDARD.
+           COPY ORDHDRCP.
+       FD  ORDDTL
+           LABEL RECORDS ARE STANDARD.
+           COPY ORDDTLCP.
+       FD  CUSMST
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSMSTCP.
+       FD  PRDMST
+           LABEL RECORDS ARE STANDARD.
+           COPY PRDMSTCP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-SFL-CNT                  PIC 9(4)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-ORDHDR-STAT              PIC XX    VALUE SPACES.
+       77  WS-ORDDTL-STAT              PIC XX    VALUE SPACES.
+       77  WS-CUSMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-PRDMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-MSG-LINE                 PIC X(78) VALUE SPACES.
+       77  WS-ORD-NO                   PIC S9(7) COMP-3 VALUE ZERO.
+       77  WS-ORD-ED                   PIC Z(6)9.
+       77  WS-ITEMS                    PIC S9(9)V99 VALUE ZERO.
+       77  WS-EXT                      PIC S9(9)V99 VALUE ZERO.
+       77  WS-SAVE-CUST                PIC X(5)  VALUE SPACES.
+      *  DATE CONVERSION WORK FIELDS (SAME AS NWC620)
+       77  WS-CYMD                     PIC 9(7)  VALUE ZERO.
+       77  WS-CYY                      PIC 999   VALUE ZERO.
+       77  WS-CC                       PIC 9     VALUE ZERO.
+       77  WS-YY                       PIC 99    VALUE ZERO.
+       77  WS-MMDD                     PIC 9(4)  VALUE ZERO.
+       77  WS-MDY6                     PIC 9(6)  VALUE ZERO.
+      *  LOCAL DATA AREA - CUSTOMER FILTER (POS 1-5)                    AW04
+      *  NOBODY CLEARS IT, SO THE LAST CUSTOMER STAYS IN THE FILTER     AW04
+       01  WS-LDA.                                                      AW04
+           05  LDA-CUST                PIC X(5).                        AW04
+           05  FILLER                  PIC X(1019).                     AW04
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  SFLREC-I-AREA.
+           COPY DDS-SFLREC-I OF NWC610D.
+       01  SFLREC-O-AREA.
+           COPY DDS-SFLREC-O OF NWC610D.
+       01  SFLCTL-I-AREA.
+           COPY DDS-SFLCTL-I OF NWC610D.
+       01  SFLCTL-O-AREA.
+           COPY DDS-SFLCTL-O OF NWC610D.
+       01  FMT01-O-AREA.
+           COPY DDS-FMT01-O OF NWC610D.
+       01  LINSFL-O-AREA.
+           COPY DDS-LINSFL-O OF NWC610D.
+       01  LINCTL-O-AREA.
+           COPY DDS-LINCTL-O OF NWC610D.
+       01  DSPFTR-O-AREA.
+           COPY DDS-DSPFTR-O OF NWC610D.
+       PROCEDURE DIVISION.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN I-O ORDHDR ORDDTL PRDMST.
+           OPEN INPUT CUSMST.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE SFLCTL-I-AREA SFLCTL-O-AREA.
+           ACCEPT WS-LDA FROM LDA-NAME.                                 AW04
+           MOVE LDA-CUST TO C1CUST OF SFLCTL-O.                         AW04
+           MOVE LDA-CUST TO C1CUST OF SFLCTL-I.                         AW04
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+       0100-SHOW-LIST.
+           MOVE WS-MSG-LINE TO MSGLIN OF FMT01-O.
+           WRITE DSP-REC FROM FMT01-O-AREA FORMAT IS "FMT01"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO SFLCTL-I-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO WS-MSG-LINE.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END-PGM.
+           IF WS-IND(05) = B"1"
+              OR C1CUST OF SFLCTL-I NOT = WS-SAVE-CUST
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           PERFORM 2000-OPTIONS THRU 2000-EXIT.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+           GO TO 0100-SHOW-LIST.
+       9000-END-PGM.
+           CLOSE DSPFILE ORDHDR ORDDTL PRDMST CUSMST.
+           GOBACK.
+      *---------------------------------------------------------------
+      *  1000 - LOAD THE SUBFILE.  READS EVERY ORDER ON FILE AND SKIPS
+      *         THE ONES FOR OTHER CUSTOMERS.  STOPS AT 999.
+      *---------------------------------------------------------------
+       1000-LOAD-SFL.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           MOVE B"0" TO WS-IND(32).
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE C1CUST OF SFLCTL-I TO WS-SAVE-CUST.
+           MOVE WS-SAVE-CUST TO C1CUST OF SFLCTL-O.
+           MOVE ZERO TO OH-ORD-NO.
+           START ORDHDR KEY IS NOT LESS THAN OH-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ ORDHDR NEXT RECORD AT END GO TO 1000-DONE.
+           IF WS-SAVE-CUST NOT = SPACES AND OH-CUST NOT = WS-SAVE-CUST
+               GO TO 1000-READ.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO S1OPT OF SFLREC-O.
+           MOVE OH-ORD-NO TO S1ORD OF SFLREC-O.
+           MOVE OH-ORD-NO TO H1ORD OF SFLREC-O.
+           MOVE OH-CUST TO S1CUST OF SFLREC-O.
+      *  CUSTOMER NAME - ONE READ PER ORDER
+           MOVE OH-CUST TO CM-CUST.
+           READ CUSMST INVALID KEY MOVE "*NOT ON FILE" TO CM-NAME.
+           MOVE CM-NAME TO S1CNAM OF SFLREC-O.
+           MOVE OH-ODAT TO WS-CYMD.
+           PERFORM 7000-CYMD-TO-MDY THRU 7000-EXIT.
+           MOVE WS-MDY6 TO S1ODAT OF SFLREC-O.
+           MOVE OH-STAT TO S1STAT OF SFLREC-O.
+           MOVE OH-TOTL TO S1TOTL OF SFLREC-O.
+           WRITE SUBFILE DSP-REC FROM SFLREC-O-AREA FORMAT IS "SFLREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 999 GO TO 1000-READ.
+           MOVE "ONLY THE FIRST 999 ORDERS ARE SHOWN" TO WS-MSG-LINE.
+       1000-DONE.
+           MOVE WS-RRN TO WS-SFL-CNT.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO
+               MOVE B"1" TO WS-IND(31)
+           ELSE
+               MOVE "NO ORDERS FOUND" TO WS-MSG-LINE.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2000 - OPTIONS
+      *---------------------------------------------------------------
+       2000-OPTIONS.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO SFLREC-I-AREA FORMAT IS "SFLREC"
+               AT END GO TO 2000-EXIT.
+           MOVE H1ORD OF SFLREC-I TO WS-ORD-NO.
+           IF S1OPT OF SFLREC-I = "4"
+               PERFORM 4000-CANCEL THRU 4000-EXIT.
+           IF S1OPT OF SFLREC-I = "5"
+               PERFORM 5000-DISPLAY THRU 5000-EXIT.
+           IF S1OPT OF SFLREC-I = "6"
+               CALL "NWC620C" USING WS-ORD-NO
+               MOVE WS-ORD-NO TO WS-ORD-ED
+               STRING "INVOICE PRINTED FOR ORDER " DELIMITED BY SIZE
+                      WS-ORD-ED DELIMITED BY SIZE INTO WS-MSG-LINE.
+           GO TO 2000-OPTIONS.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4000 - CANCEL.  NO CONFIRMATION.  STOCK IS PUT BACK.           RS06
+      *         (THE RPG NW610R DOES NOT PUT STOCK BACK)                RS06
+      *---------------------------------------------------------------
+       4000-CANCEL.                                                     RS06
+           MOVE WS-ORD-NO TO OH-ORD-NO.                                 RS06
+           READ ORDHDR INVALID KEY                                      RS06
+               MOVE "ORDER NOT FOUND" TO WS-MSG-LINE                    RS06
+               GO TO 4000-EXIT.                                         RS06
+           IF OH-STAT = "S"                                             RS06
+               MOVE "ORDER HAS SHIPPED - CANNOT CANCEL" TO WS-MSG-LINE
+               GO TO 4000-EXIT.                                         RS06
+           IF OH-STAT = "C"                                             RS06
+               MOVE "ORDER IS ALREADY CANCELLED" TO WS-MSG-LINE         RS06
+               GO TO 4000-EXIT.                                         RS06
+           MOVE "C" TO OH-STAT.                                         RS06
+           REWRITE ORDHDR-REC INVALID KEY CONTINUE END-REWRITE.         RS06
+           MOVE WS-ORD-NO TO OD-ORD-NO.                                 RS06
+           MOVE ZERO TO OD-LIN-NO.                                      RS06
+           START ORDDTL KEY IS NOT LESS THAN OD-KEY                     RS06
+               INVALID KEY GO TO 4000-DONE.                             RS06
+       4000-READ.                                                       RS06
+           READ ORDDTL NEXT RECORD AT END GO TO 4000-DONE.              RS06
+           IF OD-ORD-NO NOT = WS-ORD-NO GO TO 4000-DONE.                RS06
+           MOVE OD-PRD-NO TO PM-PRD-NO.                                 RS06
+           READ PRDMST INVALID KEY GO TO 4000-READ.                     RS06
+           ADD OD-QTY TO PM-STCK.                                       RS06
+           REWRITE PRDMST-REC INVALID KEY CONTINUE END-REWRITE.         RS06
+           GO TO 4000-READ.                                             RS06
+       4000-DONE.                                                       RS06
+           MOVE WS-ORD-NO TO WS-ORD-ED.                                 RS06
+           STRING "ORDER " DELIMITED BY SIZE WS-ORD-ED DELIMITED BY SIZE
+                  " CANCELLED" DELIMITED BY SIZE INTO WS-MSG-LINE.      RS06
+       4000-EXIT.                                                       RS06
+           EXIT.                                                        RS06
+      *---------------------------------------------------------------
+      *  5000 - DISPLAY ONE ORDER WITH ITS LINES.  THE EXTENDED PRICE
+      *         IS WORKED OUT AGAIN HERE (THE INVOICE USES ODEXT)
+      *---------------------------------------------------------------
+       5000-DISPLAY.
+           MOVE WS-ORD-NO TO OH-ORD-NO.
+           READ ORDHDR INVALID KEY
+               MOVE "ORDER NOT FOUND" TO WS-MSG-LINE
+               GO TO 5000-EXIT.
+           INITIALIZE LINCTL-O-AREA DSPFTR-O-AREA.
+           MOVE OH-ORD-NO TO D1ORD OF LINCTL-O.
+           MOVE OH-CUST TO D1CUST OF LINCTL-O.
+           MOVE OH-CUST TO CM-CUST.
+           READ CUSMST INVALID KEY MOVE "*NOT ON FILE" TO CM-NAME.
+           MOVE CM-NAME TO D1CNAM OF LINCTL-O.
+           MOVE OH-ODAT TO WS-CYMD.
+           PERFORM 7000-CYMD-TO-MDY THRU 7000-EXIT.
+           MOVE WS-MDY6 TO D1ODAT OF LINCTL-O.
+           MOVE OH-SDAT TO WS-CYMD.
+           PERFORM 7000-CYMD-TO-MDY THRU 7000-EXIT.
+           MOVE WS-MDY6 TO D1SDAT OF LINCTL-O.
+           MOVE OH-STAT TO D1STAT OF LINCTL-O.
+           MOVE OH-SNAM TO D1SNAM OF LINCTL-O.
+           MOVE OH-SCTY TO D1SCTY OF LINCTL-O.
+           MOVE OH-SCNT TO D1SCNT OF LINCTL-O.
+           MOVE B"1" TO WS-IND(37).
+           MOVE B"0" TO WS-IND(35).
+           MOVE B"0" TO WS-IND(36).
+           WRITE DSP-REC FROM LINCTL-O-AREA FORMAT IS "LINCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(37).
+           MOVE ZERO TO WS-RRN WS-ITEMS.
+           MOVE WS-ORD-NO TO OD-ORD-NO.
+           MOVE ZERO TO OD-LIN-NO.
+           START ORDDTL KEY IS NOT LESS THAN OD-KEY
+               INVALID KEY GO TO 5000-SHOW.
+       5000-READ.
+           READ ORDDTL NEXT RECORD AT END GO TO 5000-SHOW.
+           IF OD-ORD-NO NOT = WS-ORD-NO GO TO 5000-SHOW.
+           ADD 1 TO WS-RRN.
+           MOVE OD-LIN-NO TO L1LIN OF LINSFL-O.
+           MOVE OD-PRD-NO TO L1PRD OF LINSFL-O.
+      *  PRDMST IS OPEN I-O FOR THE CANCEL - THIS READ LOCKS IT TOO
+           MOVE OD-PRD-NO TO PM-PRD-NO.
+           READ PRDMST INVALID KEY MOVE "*NOT ON FILE" TO PM-NAME.
+           MOVE PM-NAME TO L1NAME OF LINSFL-O.
+           MOVE OD-QTY TO L1QTY OF LINSFL-O.
+           MOVE OD-PRIC TO L1PRIC OF LINSFL-O.
+           MOVE OD-DISC TO L1DISC OF LINSFL-O.
+           COMPUTE WS-EXT ROUNDED = OD-PRIC * OD-QTY * (1 - OD-DISC).
+           MOVE WS-EXT TO L1EXT OF LINSFL-O.
+           ADD WS-EXT TO WS-ITEMS.
+           WRITE SUBFILE DSP-REC FROM LINSFL-O-AREA FORMAT IS "LINSFL"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 100 GO TO 5000-READ.
+       5000-SHOW.
+           MOVE B"1" TO WS-IND(36).
+           MOVE B"1" TO WS-IND(38).
+           IF WS-RRN > ZERO MOVE B"1" TO WS-IND(35).
+           MOVE WS-ITEMS TO D1TOT OF DSPFTR-O.
+           MOVE OH-FRT TO D1FRT OF DSPFTR-O.
+           MOVE OH-TOTL TO D1TOTS OF DSPFTR-O.
+           WRITE DSP-REC FROM DSPFTR-O-AREA FORMAT IS "DSPFTR"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM LINCTL-O-AREA FORMAT IS "LINCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE FORMAT IS "LINCTL"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-IND(03) = B"1" GO TO 9000-END-PGM.
+       5000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7000 - CYYMMDD TO MMDDYY (COPIED INTO NWC620 AS WELL)
+      *---------------------------------------------------------------
+       7000-CYMD-TO-MDY.
+           MOVE ZERO TO WS-MDY6.
+           IF WS-CYMD = ZERO GO TO 7000-EXIT.
+           DIVIDE WS-CYMD BY 10000 GIVING WS-CYY REMAINDER WS-MMDD.
+           DIVIDE WS-CYY BY 100 GIVING WS-CC REMAINDER WS-YY.
+           COMPUTE WS-MDY6 = WS-MMDD * 100 + WS-YY.
+       7000-EXIT.
+           EXIT.

@@ -1,0 +1,20 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER SUPL1CP   SUPPLIERS BY NAME (LF SUPMSTL1)
+      *  LAYOUT MUST MATCH FILE SUPMSTL1 - CHANGE BOTH TOGETHER
+      *  KEY: SMNAME
+      *----------------------------------------------------------------
+       01  SUPL1-REC.
+           05  SL-SUP-NO            PIC S9(5) COMP-3.
+           05  SL-KEY.
+               10  SL-NAME              PIC X(40).
+           05  SL-CONT              PIC X(30).
+           05  SL-TITL              PIC X(30).
+           05  SL-ADDR              PIC X(60).
+           05  SL-CITY              PIC X(15).
+           05  SL-REGN              PIC X(15).
+           05  SL-POST              PIC X(10).
+           05  SL-CNTY              PIC X(15).
+           05  SL-PHON              PIC X(24).
+           05  SL-FAX               PIC X(24).
+           05  SL-HOME              PIC X(80).
+           05  SL-STAT              PIC X(1).

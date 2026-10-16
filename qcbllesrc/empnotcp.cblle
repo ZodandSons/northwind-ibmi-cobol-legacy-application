@@ -1,0 +1,10 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER EMPNOTCP  EMPLOYEE NOTES LINES
+      *  LAYOUT MUST MATCH FILE EMPNOT - CHANGE BOTH TOGETHER
+      *  KEY: ENEMP#, ENSEQ
+      *----------------------------------------------------------------
+       01  EMPNOT-REC.
+           05  EN-KEY.
+               10  EN-EMP-NO            PIC S9(5) COMP-3.
+               10  EN-SEQ               PIC S9(3) COMP-3.
+           05  EN-TEXT              PIC X(60).

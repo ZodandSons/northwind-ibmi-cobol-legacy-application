@@ -1,0 +1,9 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER CUSDEMCP  CUSTOMER DEMOGRAPHIC TYPES
+      *  LAYOUT MUST MATCH FILE CUSDEM - CHANGE BOTH TOGETHER
+      *  KEY: CDCUST, CDTYPE
+      *----------------------------------------------------------------
+       01  CUSDEM-REC.
+           05  CD-KEY.
+               10  CD-CUST              PIC X(5).
+               10  CD-TYPE              PIC X(10).

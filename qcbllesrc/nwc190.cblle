@@ -1,0 +1,110 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC190.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  10/02/97.
+      *****************************************************************
+      *  CUSTOMER SELECT WINDOW (F4 PROMPT)
+      *
+      *  PARAMETER: RETURNS THE SELECTED CUSTOMER (UNCHANGED ON F12)
+      *  SAME CODE AS NWC490
+      *****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC190D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT CUSMSTL1 ASSIGN TO DATABASE-CUSMSTL1
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS C1-KEY
+               WITH DUPLICATES
+               FILE STATUS IS WS-CUSMSTL1-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  CUSMSTL1
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSL1CP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-CUSMSTL1-STAT            PIC XX    VALUE SPACES.
+       77  WS-SAVE-POS                 PIC X(20) VALUE SPACES.
+       77  WS-NUM-KEY                  PIC 9(5)  VALUE ZERO.
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  W1SFL-I-AREA.
+           COPY DDS-W1SFL-I OF NWC190D.
+       01  W1SFL-O-AREA.
+           COPY DDS-W1SFL-O OF NWC190D.
+       01  W1CTL-I-AREA.
+           COPY DDS-W1CTL-I OF NWC190D.
+       01  W1CTL-O-AREA.
+           COPY DDS-W1CTL-O OF NWC190D.
+       LINKAGE SECTION.
+       01  LK-KEY                      PIC X(5).
+       PROCEDURE DIVISION USING LK-KEY.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN INPUT CUSMSTL1.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE W1CTL-I-AREA W1CTL-O-AREA.
+           PERFORM 1000-LOAD THRU 1000-EXIT.
+       0100-SHOW.
+           WRITE DSP-REC FROM W1CTL-O-AREA FORMAT IS "W1CTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO W1CTL-I-AREA FORMAT IS "W1CTL"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-IND(12) = B"1" GO TO 9000-END.
+           IF W1POS OF W1CTL-I NOT = WS-SAVE-POS
+               PERFORM 1000-LOAD THRU 1000-EXIT
+               GO TO 0100-SHOW.
+       0200-PICK.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO W1SFL-I-AREA FORMAT IS "W1SFL"
+               AT END GO TO 0100-SHOW.
+           IF W1OPT OF W1SFL-I = "1"
+               MOVE H1KEY OF W1SFL-I TO LK-KEY
+               GO TO 9000-END.
+           GO TO 0200-PICK.
+       9000-END.
+           CLOSE DSPFILE CUSMSTL1.
+           GOBACK.
+      *---------------------------------------------------------------
+       1000-LOAD.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           WRITE DSP-REC FROM W1CTL-O-AREA FORMAT IS "W1CTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE W1POS OF W1CTL-I TO WS-SAVE-POS W1POS OF W1CTL-O.
+           MOVE SPACES TO C1-KEY.
+           MOVE WS-SAVE-POS TO C1-NAME.
+           START CUSMSTL1 KEY IS NOT LESS THAN C1-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ CUSMSTL1 NEXT RECORD AT END GO TO 1000-DONE.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO W1OPT OF W1SFL-O.
+           MOVE C1-CUST TO W1KEY OF W1SFL-O.
+           MOVE C1-CUST TO H1KEY OF W1SFL-O.
+           MOVE C1-NAME TO W1NAME OF W1SFL-O.
+           WRITE SUBFILE DSP-REC FROM W1SFL-O-AREA FORMAT IS "W1SFL"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 300 GO TO 1000-READ.
+       1000-DONE.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO MOVE B"1" TO WS-IND(31).
+       1000-EXIT.
+           EXIT.

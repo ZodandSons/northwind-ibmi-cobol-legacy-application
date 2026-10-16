@@ -1,0 +1,263 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC620.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  07/30/91.
+      *****************************************************************
+      *  PRINT ONE INVOICE  (CALLED FROM NWC620C)
+      *
+      *  07/30/91 PG         NEW
+      *  09/30/95 PG   PG95  MOVED TO NORTHWIND FILES
+      *  01/20/00 AW   AW00  Y2K - DATES ON FILE ARE CYYMMDD
+      *
+      *  PARM: ORDER NUMBER PACKED 7,0
+      *  QSYSPRT IS OVERRIDDEN BY NWC620C (FORM TYPE INVOICE)
+      *  TOTAL DUE = ORDER TOTAL + FREIGHT
+      *****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT PRTFILE ASSIGN TO PRINTER-QSYSPRT
+               FILE STATUS IS WS-PRT-STAT.
+           SELECT ORDHDR ASSIGN TO DATABASE-ORDHDR
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS OH-KEY
+               FILE STATUS IS WS-ORDHDR-STAT.
+           SELECT ORDDTL ASSIGN TO DATABASE-ORDDTL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS OD-KEY
+               FILE STATUS IS WS-ORDDTL-STAT.
+           SELECT CUSMST ASSIGN TO DATABASE-CUSMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CM-KEY
+               FILE STATUS IS WS-CUSMST-STAT.
+           SELECT PRDMST ASSIGN TO DATABASE-PRDMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS PM-KEY
+               FILE STATUS IS WS-PRDMST-STAT.
+           SELECT CODTBL ASSIGN TO DATABASE-CODTBL
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS CT-KEY
+               FILE STATUS IS WS-CODTBL-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  PRTFILE
+           LABEL RECORDS ARE OMITTED.
+       01  PRT-REC                     PIC X(132).
+       FD  ORDHDR
+           LABEL RECORDS ARE STANDARD.
+           COPY ORDHDRCP.
+       FD  ORDDTL
+           LABEL RECORDS ARE STANDARD.
+           COPY ORDDTLCP.
+       FD  CUSMST
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSMSTCP.
+       FD  PRDMST
+           LABEL RECORDS ARE STANDARD.
+           COPY PRDMSTCP.
+       FD  CODTBL
+           LABEL RECORDS ARE STANDARD.
+           COPY CODTBLCP.
+       WORKING-STORAGE SECTION.
+       77  WS-PRT-STAT                 PIC XX    VALUE SPACES.
+       77  WS-ORDHDR-STAT              PIC XX    VALUE SPACES.
+       77  WS-ORDDTL-STAT              PIC XX    VALUE SPACES.
+       77  WS-CUSMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-PRDMST-STAT              PIC XX    VALUE SPACES.
+       77  WS-CODTBL-STAT              PIC XX    VALUE SPACES.
+       77  WS-LINE-CNT                 PIC 99    VALUE 99.
+       77  WS-PAGE                     PIC 999   VALUE ZERO.
+       77  WS-ITEMS                    PIC S9(9)V99 VALUE ZERO.
+       77  WS-DUE                      PIC S9(9)V99 VALUE ZERO.
+       77  WS-DISC-PCT                 PIC 999   VALUE ZERO.
+      *  DATE CONVERSION WORK FIELDS (COPIED FROM NWC610)
+       77  WS-CYMD                     PIC 9(7)  VALUE ZERO.
+       77  WS-CYY                      PIC 999   VALUE ZERO.
+       77  WS-CC                       PIC 9     VALUE ZERO.
+       77  WS-YY                       PIC 99    VALUE ZERO.
+       77  WS-MMDD                     PIC 9(4)  VALUE ZERO.
+       77  WS-MDY6                     PIC 9(6)  VALUE ZERO.
+       01  WS-TODAY                    PIC 9(6)  VALUE ZERO.
+       01  WS-TODAY-R REDEFINES WS-TODAY.
+           05  WS-T-YY                 PIC 99.
+           05  WS-T-MM                 PIC 99.
+           05  WS-T-DD                 PIC 99.
+      *  PRINT LINES
+       01  HD1.
+           05  FILLER                  PIC X(40) VALUE
+               "NORTHWIND TRADERS - DALLAS".
+           05  FILLER                  PIC X(60) VALUE SPACES.
+           05  FILLER                  PIC X(8)  VALUE "INVOICE".
+           05  FILLER                  PIC X(9)  VALUE "  PAGE ".
+           05  HD1-PAGE                PIC ZZ9.
+       01  HD2.
+           05  FILLER                  PIC X(40) VALUE
+               "2101 COMMERCE ST.  DALLAS TX 75201".
+           05  FILLER                  PIC X(60) VALUE SPACES.
+           05  FILLER                  PIC X(6)  VALUE "DATE ".
+           05  HD2-DATE                PIC 99/99/99.
+       01  HD3.
+           05  FILLER                  PIC X(10) VALUE "ORDER NO.".
+           05  HD3-ORD                 PIC Z(6)9.
+           05  FILLER                  PIC X(5)  VALUE SPACES.
+           05  FILLER                  PIC X(10) VALUE "ORDERED".
+           05  HD3-ODAT                PIC 99/99/99.
+           05  FILLER                  PIC X(5)  VALUE SPACES.
+           05  FILLER                  PIC X(10) VALUE "SHIP VIA".
+           05  HD3-SHPV                PIC X(30).
+       01  HD4.
+           05  FILLER                  PIC X(10) VALUE "SOLD TO".
+           05  HD4-CUST                PIC X(6).
+           05  HD4-NAME                PIC X(40).
+           05  FILLER                  PIC X(4)  VALUE SPACES.
+           05  FILLER                  PIC X(10) VALUE "SHIP TO".
+           05  HD4-SNAM                PIC X(40).
+       01  HD5.
+           05  FILLER                  PIC X(16) VALUE SPACES.
+           05  HD5-ADDR                PIC X(40).
+           05  FILLER                  PIC X(14) VALUE SPACES.
+           05  HD5-SADR                PIC X(40).
+       01  HD6.
+           05  FILLER                  PIC X(16) VALUE SPACES.
+           05  HD6-CITY                PIC X(15).
+           05  FILLER                  PIC X     VALUE SPACE.
+           05  HD6-CNTY                PIC X(24).
+           05  FILLER                  PIC X(14) VALUE SPACES.
+           05  HD6-SCTY                PIC X(15).
+           05  FILLER                  PIC X     VALUE SPACE.
+           05  HD6-SCNT                PIC X(15).
+       01  HD7.
+           05  FILLER                  PIC X(50) VALUE
+               "LN  PROD#  DESCRIPTION                          ".
+           05  FILLER                  PIC X(50) VALUE
+               "    QTY     UNIT PRICE  DISC      EXTENDED".
+       01  DL1.
+           05  DL1-LIN                 PIC ZZ9.
+           05  FILLER                  PIC X     VALUE SPACE.
+           05  DL1-PRD                 PIC ZZZZ9.
+           05  FILLER                  PIC XX    VALUE SPACES.
+           05  DL1-NAME                PIC X(40).
+           05  FILLER                  PIC X     VALUE SPACE.
+           05  DL1-QTY                 PIC ZZ,ZZ9.
+           05  FILLER                  PIC XX    VALUE SPACES.
+           05  DL1-PRIC                PIC Z,ZZZ,ZZ9.99.
+           05  FILLER                  PIC XX    VALUE SPACES.
+           05  DL1-DISC                PIC ZZ9.
+           05  FILLER                  PIC X     VALUE "%".
+           05  FILLER                  PIC X     VALUE SPACE.
+           05  DL1-EXT                 PIC ZZZ,ZZZ,ZZ9.99-.
+       01  TL1.
+           05  FILLER                  PIC X(64) VALUE SPACES.
+           05  TL1-TEXT                PIC X(15).
+           05  TL1-AMT                 PIC ZZZ,ZZZ,ZZ9.99-.
+       LINKAGE SECTION.
+       01  LK-ORD-NO                   PIC S9(7) COMP-3.
+       PROCEDURE DIVISION USING LK-ORD-NO.
+       0000-MAINLINE.
+           OPEN OUTPUT PRTFILE.
+           OPEN INPUT ORDHDR ORDDTL CUSMST PRDMST CODTBL.
+           MOVE 99 TO WS-LINE-CNT.
+           MOVE ZERO TO WS-PAGE WS-ITEMS.
+           ACCEPT WS-TODAY FROM DATE.
+           COMPUTE WS-MDY6 = WS-T-MM * 10000 + WS-T-DD * 100 + WS-T-YY.
+           MOVE WS-MDY6 TO HD2-DATE.
+           MOVE LK-ORD-NO TO OH-ORD-NO.
+           READ ORDHDR INVALID KEY GO TO 9000-END-PGM.
+           MOVE OH-CUST TO CM-CUST.
+           READ CUSMST INVALID KEY
+               MOVE SPACES TO CUSMST-REC
+               MOVE "*** CUSTOMER NOT ON FILE ***" TO CM-NAME.
+           MOVE "SHP" TO CT-TYPE.
+           MOVE OH-SHPV TO CT-CODE.
+           READ CODTBL INVALID KEY MOVE SPACES TO CT-DESC.
+           MOVE OH-ORD-NO TO OD-ORD-NO.
+           MOVE ZERO TO OD-LIN-NO.
+           START ORDDTL KEY IS NOT LESS THAN OD-KEY
+               INVALID KEY GO TO 0500-TOTALS.
+       0100-READ.
+           READ ORDDTL NEXT RECORD AT END GO TO 0500-TOTALS.
+           IF OD-ORD-NO NOT = OH-ORD-NO GO TO 0500-TOTALS.
+           IF WS-LINE-CNT > 55
+               PERFORM 1000-HEADINGS THRU 1000-EXIT.
+           MOVE OD-PRD-NO TO PM-PRD-NO.
+           READ PRDMST INVALID KEY MOVE "*NOT ON FILE" TO PM-NAME.
+           MOVE OD-LIN-NO TO DL1-LIN.
+           MOVE OD-PRD-NO TO DL1-PRD.
+           MOVE PM-NAME TO DL1-NAME.
+           MOVE OD-QTY TO DL1-QTY.
+           MOVE OD-PRIC TO DL1-PRIC.
+           COMPUTE WS-DISC-PCT = OD-DISC * 100.
+           MOVE WS-DISC-PCT TO DL1-DISC.
+      *  EXTENDED PRICE AS STORED ON THE LINE (NWC610 WORKS IT OUT)
+           MOVE OD-EXT TO DL1-EXT.
+           ADD OD-EXT TO WS-ITEMS.
+           WRITE PRT-REC FROM DL1 AFTER ADVANCING 1 LINE.
+           ADD 1 TO WS-LINE-CNT.
+           GO TO 0100-READ.
+       0500-TOTALS.
+           IF WS-LINE-CNT > 50
+               PERFORM 1000-HEADINGS THRU 1000-EXIT.
+           MOVE "ITEMS" TO TL1-TEXT.
+           MOVE WS-ITEMS TO TL1-AMT.
+           WRITE PRT-REC FROM TL1 AFTER ADVANCING 2 LINES.
+           MOVE "FREIGHT" TO TL1-TEXT.
+           MOVE OH-FRT TO TL1-AMT.
+           WRITE PRT-REC FROM TL1 AFTER ADVANCING 1 LINE.
+      *  1991 RULE: ORDER TOTAL IS ITEMS ONLY, SO ADD THE FREIGHT
+           COMPUTE WS-DUE = OH-TOTL + OH-FRT.
+           MOVE "TOTAL DUE" TO TL1-TEXT.
+           MOVE WS-DUE TO TL1-AMT.
+           WRITE PRT-REC FROM TL1 AFTER ADVANCING 2 LINES.
+       9000-END-PGM.
+           CLOSE PRTFILE ORDHDR ORDDTL CUSMST PRDMST CODTBL.
+           GOBACK.
+      *---------------------------------------------------------------
+      *  1000 - PAGE HEADINGS (THE WHOLE HEADER IS REPEATED EACH PAGE)
+      *---------------------------------------------------------------
+       1000-HEADINGS.
+           ADD 1 TO WS-PAGE.
+           MOVE WS-PAGE TO HD1-PAGE.
+           WRITE PRT-REC FROM HD1 AFTER ADVANCING PAGE.
+           WRITE PRT-REC FROM HD2 AFTER ADVANCING 1 LINE.
+           MOVE OH-ORD-NO TO HD3-ORD.
+           MOVE OH-ODAT TO WS-CYMD.
+           PERFORM 7000-CYMD-TO-MDY THRU 7000-EXIT.
+           MOVE WS-MDY6 TO HD3-ODAT.
+           MOVE CT-DESC TO HD3-SHPV.
+           WRITE PRT-REC FROM HD3 AFTER ADVANCING 2 LINES.
+           MOVE OH-CUST TO HD4-CUST.
+           MOVE CM-NAME TO HD4-NAME.
+           MOVE OH-SNAM TO HD4-SNAM.
+           WRITE PRT-REC FROM HD4 AFTER ADVANCING 2 LINES.
+           MOVE CM-ADDR TO HD5-ADDR.
+           MOVE OH-SADR TO HD5-SADR.
+           WRITE PRT-REC FROM HD5 AFTER ADVANCING 1 LINE.
+           MOVE CM-CITY TO HD6-CITY.
+           MOVE CM-CNTY TO HD6-CNTY.
+           MOVE OH-SCTY TO HD6-SCTY.
+           MOVE OH-SCNT TO HD6-SCNT.
+           WRITE PRT-REC FROM HD6 AFTER ADVANCING 1 LINE.
+           WRITE PRT-REC FROM HD7 AFTER ADVANCING 2 LINES.
+           MOVE 11 TO WS-LINE-CNT.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7000 - CYYMMDD TO MMDDYY (COPIED FROM NWC610)
+      *---------------------------------------------------------------
+       7000-CYMD-TO-MDY.
+           MOVE ZERO TO WS-MDY6.
+           IF WS-CYMD = ZERO GO TO 7000-EXIT.
+           DIVIDE WS-CYMD BY 10000 GIVING WS-CYY REMAINDER WS-MMDD.
+           DIVIDE WS-CYY BY 100 GIVING WS-CC REMAINDER WS-YY.
+           COMPUTE WS-MDY6 = WS-MMDD * 100 + WS-YY.
+       7000-EXIT.
+           EXIT.

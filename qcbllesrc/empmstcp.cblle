@@ -1,0 +1,23 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER EMPMSTCP  EMPLOYEE MASTER
+      *  LAYOUT MUST MATCH FILE EMPMST - CHANGE BOTH TOGETHER
+      *  KEY: EMEMP#
+      *----------------------------------------------------------------
+       01  EMPMST-REC.
+           05  EM-KEY.
+               10  EM-EMP-NO            PIC S9(5) COMP-3.
+           05  EM-LNAM              PIC X(20).
+           05  EM-FNAM              PIC X(10).
+           05  EM-TITL              PIC X(30).
+           05  EM-CRTS              PIC X(25).
+           05  EM-BDAT              PIC S9(8) COMP-3.
+           05  EM-HDAT              PIC S9(8) COMP-3.
+           05  EM-ADDR              PIC X(60).
+           05  EM-CITY              PIC X(15).
+           05  EM-REGN              PIC X(15).
+           05  EM-POST              PIC X(10).
+           05  EM-CNTY              PIC X(15).
+           05  EM-HPHN              PIC X(24).
+           05  EM-EXT               PIC X(4).
+           05  EM-RPTO              PIC S9(5) COMP-3.
+           05  EM-STAT              PIC X(1).

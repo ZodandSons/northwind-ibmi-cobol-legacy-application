@@ -1,0 +1,22 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER CUSL1CP   CUSTOMER MASTER BY NAME (LF CUSMSTL1)
+      *  LAYOUT MUST MATCH FILE CUSMSTL1 - CHANGE BOTH TOGETHER
+      *  KEY: CMNAME
+      *----------------------------------------------------------------
+       01  CUSL1-REC.
+           05  C1-CUST              PIC X(5).
+           05  C1-KEY.
+               10  C1-NAME              PIC X(40).
+           05  C1-CONT              PIC X(30).
+           05  C1-TITL              PIC X(30).
+           05  C1-ADDR              PIC X(60).
+           05  C1-CITY              PIC X(15).
+           05  C1-REGN              PIC X(15).
+           05  C1-POST              PIC X(10).
+           05  C1-CNTY              PIC X(15).
+           05  C1-PHON              PIC X(24).
+           05  C1-FAX               PIC X(24).
+           05  C1-STAT              PIC X(1).
+           05  C1-CRDT              PIC S9(6).
+           05  C1-CHDT              PIC S9(6).
+           05  C1-CHUS              PIC X(10).

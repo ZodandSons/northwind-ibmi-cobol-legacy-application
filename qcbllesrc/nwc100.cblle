@@ -1,0 +1,421 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC100.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  04/11/91.
+      ****************************************************************
+      *  CUSTOMER MASTER MAINTENANCE
+      *
+      *  MODIFICATION LOG
+      *  04/11/91 PG         WRITTEN FOR DALLAS DIVISION
+      *  09/30/95 PG   PG95  MOVED TO NORTHWIND FILES (CUSMST)
+      *  12/01/99 AW   AW99  Y2K - ACCEPT FROM DATE KEPT (YYMMDD)
+      *  05/05/04 AW   AW04  OPTION 8 = ORDERS (CALL NWC610 VIA LDA)
+      *  07/07/08 RS   RS08  LOGICAL DELETE (STATUS D)
+      *
+      *  INDICATORS (WS-IND):  03 EXIT  06 ADD  12 CANCEL
+      *    31 SFLDSP  32 SFLDSPCTL  33 SFLCLR  34 SFLEND
+      *    40 PROTECT KEY  41 PROTECT ALL  51-66 FIELD IN ERROR
+      ****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       SPECIAL-NAMES.
+           LOCAL-DATA IS LDA-NAME
+           CLASS PHONE-CHARS IS "0" THRU "9" " " "(" ")" "-" "." "+".
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC100D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT CUSMST ASSIGN TO DATABASE-CUSMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS CM-KEY
+               FILE STATUS IS WS-PF-STAT.
+           SELECT CUSMSTL1 ASSIGN TO DATABASE-CUSMSTL1
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS C1-KEY
+               WITH DUPLICATES
+               FILE STATUS IS WS-LF-STAT.
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  CUSMST
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSMSTCP.
+       FD  CUSMSTL1
+           LABEL RECORDS ARE STANDARD.
+           COPY CUSL1CP.
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-X                        PIC 9(3)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-PF-STAT                  PIC XX    VALUE SPACES.
+       77  WS-LF-STAT                  PIC XX    VALUE SPACES.
+       77  WS-ERR                      PIC X     VALUE "N".
+       77  WS-SAVE-POS                 PIC X(20) VALUE SPACES.
+       77  WS-MSG-LINE                 PIC X(78) VALUE SPACES.
+       77  WS-DTL-MSG                  PIC X(78) VALUE SPACES.
+       77  WS-KEY                      PIC X(5)  VALUE SPACES.
+       01  WS-TODAY-AREA.
+           05  WS-TODAY                PIC 9(6).
+           05  WS-TODAY-R REDEFINES WS-TODAY.
+               10  WS-T-YY             PIC 99.
+               10  WS-T-MM             PIC 99.
+               10  WS-T-DD             PIC 99.
+       01  WS-MDY                      PIC 9(6)  VALUE ZERO.
+      *  INDICATOR AREA FOR THE -SI DISPLAY FILE
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  SFLREC-I-AREA.
+           COPY DDS-SFLREC-I OF NWC100D.
+       01  SFLREC-O-AREA.
+           COPY DDS-SFLREC-O OF NWC100D.
+       01  SFLCTL-I-AREA.
+           COPY DDS-SFLCTL-I OF NWC100D.
+       01  SFLCTL-O-AREA.
+           COPY DDS-SFLCTL-O OF NWC100D.
+       01  FMT01-O-AREA.
+           COPY DDS-FMT01-O OF NWC100D.
+       01  DTLREC-I-AREA.
+           COPY DDS-DTLREC-I OF NWC100D.
+       01  DTLREC-O-AREA.
+           COPY DDS-DTLREC-O OF NWC100D.
+       01  DLTREC-I-AREA.
+           COPY DDS-DLTREC-I OF NWC100D.
+       01  DLTREC-O-AREA.
+           COPY DDS-DLTREC-O OF NWC100D.
+      *  MESSAGES
+       01  WS-MSG-VALUES.
+           05  FILLER                  PIC X(40) VALUE
+               "CUSTOMER NOT FOUND".
+           05  FILLER                  PIC X(40) VALUE
+               "CUSTOMER CHANGED".
+           05  FILLER                  PIC X(40) VALUE
+               "CUSTOMER ADDED".
+           05  FILLER                  PIC X(40) VALUE
+               "CUSTOMER DELETED".
+           05  FILLER                  PIC X(40) VALUE
+               "CUSTOMER ALREADY ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "NO CUSTOMERS ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "COMPANY NAME IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "COUNTRY IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "CUSTOMER NUMBER IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "PHONE HAS INVALID CHARACTERS".
+       01  WS-MSG-TABLE REDEFINES WS-MSG-VALUES.
+           05  WS-MSG                  PIC X(40) OCCURS 10 TIMES.
+      *  LOCAL DATA AREA - CUSTOMER FILTER FOR NWC610 (POS 1-5)         AW04
+       01  WS-LDA.                                                      AW04
+           05  LDA-CUST                PIC X(5).                        AW04
+           05  FILLER                  PIC X(1019).                     AW04
+       01  WS-CALL-CUST                PIC X(5).                        RS08
+       PROCEDURE DIVISION.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN I-O CUSMST.
+           OPEN INPUT CUSMSTL1.
+           ACCEPT WS-TODAY FROM DATE.
+           COMPUTE WS-MDY = WS-T-MM * 10000 + WS-T-DD * 100 + WS-T-YY.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE SFLCTL-I-AREA SFLCTL-O-AREA.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+       0100-SHOW-LIST.
+           MOVE WS-MSG-LINE TO MSGLIN OF FMT01-O.
+           WRITE DSP-REC FROM FMT01-O-AREA FORMAT IS "FMT01"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO SFLCTL-I-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO WS-MSG-LINE.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END-PGM.
+           IF WS-IND(06) = B"1"
+               PERFORM 4000-ADD THRU 4000-EXIT
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           IF C1POS OF SFLCTL-I NOT = WS-SAVE-POS
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           PERFORM 2000-OPTIONS THRU 2000-EXIT.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+           GO TO 0100-SHOW-LIST.
+       9000-END-PGM.
+           CLOSE DSPFILE CUSMST CUSMSTL1.
+           GOBACK.
+      *---------------------------------------------------------------
+      *  1000 - LOAD THE SUBFILE FROM THE POSITION-TO NAME (MAX 500)
+      *---------------------------------------------------------------
+       1000-LOAD-SFL.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           MOVE B"0" TO WS-IND(32).
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE C1POS OF SFLCTL-I TO WS-SAVE-POS.
+           MOVE WS-SAVE-POS TO C1POS OF SFLCTL-O.
+           MOVE SPACES TO C1-KEY.
+           MOVE WS-SAVE-POS TO C1-NAME.
+           START CUSMSTL1 KEY IS NOT LESS THAN C1-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ CUSMSTL1 NEXT RECORD AT END GO TO 1000-DONE.
+           IF C1-STAT = "D" GO TO 1000-READ.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO S1OPT OF SFLREC-O.
+           MOVE C1-CUST TO S1CUST OF SFLREC-O.
+           MOVE C1-NAME TO S1NAME OF SFLREC-O.
+           MOVE C1-CITY TO S1CITY OF SFLREC-O.
+           MOVE C1-CNTY TO S1CNTY OF SFLREC-O.
+           MOVE C1-CUST TO H1KEY OF SFLREC-O.
+           WRITE SUBFILE DSP-REC FROM SFLREC-O-AREA FORMAT IS "SFLREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 500 GO TO 1000-READ.
+       1000-DONE.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO
+               MOVE B"1" TO WS-IND(31)
+           ELSE
+               MOVE WS-MSG(6) TO WS-MSG-LINE.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2000 - PROCESS OPTIONS TYPED IN THE SUBFILE
+      *---------------------------------------------------------------
+       2000-OPTIONS.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO SFLREC-I-AREA FORMAT IS "SFLREC"
+               AT END GO TO 2000-EXIT.
+           MOVE H1KEY OF SFLREC-I TO WS-KEY.
+           IF S1OPT OF SFLREC-I = "2"
+               PERFORM 3000-CHANGE THRU 3000-EXIT.
+           IF S1OPT OF SFLREC-I = "4"
+               PERFORM 5000-DELETE THRU 5000-EXIT.
+           IF S1OPT OF SFLREC-I = "5"
+               PERFORM 6000-DISPLAY THRU 6000-EXIT.
+           IF S1OPT OF SFLREC-I = "8"
+               PERFORM 8100-ORDERS THRU 8100-EXIT.
+           IF S1OPT OF SFLREC-I = "9"
+               PERFORM 8200-TYPES THRU 8200-EXIT.
+           GO TO 2000-OPTIONS.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  3000 - CHANGE.  RECORD STAYS LOCKED WHILE THE SCREEN IS UP
+      *---------------------------------------------------------------
+       3000-CHANGE.
+           MOVE WS-KEY TO CM-CUST.
+           READ CUSMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "CHANGE" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE B"0" TO WS-IND(41).
+           PERFORM 7000-FILE-TO-SCREEN THRU 7000-EXIT.
+       3000-SHOW.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 3000-EXIT.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 3000-SHOW.
+      *  READ AGAIN - EDIT MAY HAVE READ OTHER RECORDS OF THIS FILE
+           MOVE WS-KEY TO CM-CUST.
+           READ CUSMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           PERFORM 7100-SCREEN-TO-FILE THRU 7100-EXIT.
+           MOVE WS-MDY TO CM-CHDT.
+           MOVE "NWC100" TO CM-CHUS.
+           REWRITE CUSMST-REC
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           MOVE WS-MSG(2) TO WS-MSG-LINE.
+       3000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4000 - ADD
+      *---------------------------------------------------------------
+       4000-ADD.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "ADD" TO D1MODE OF DTLREC-O.
+           MOVE B"0" TO WS-IND(40).
+           MOVE B"0" TO WS-IND(41).
+       4000-SHOW.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 4000-EXIT.
+           IF D1CUST OF DTLREC-I = SPACES
+               MOVE B"1" TO WS-IND(51)
+               MOVE WS-MSG(9) TO WS-DTL-MSG
+               GO TO 4000-SHOW.
+      *  DUPLICATE CHECK (A FOUND RECORD IS NOW LOCKED)
+           MOVE D1CUST OF DTLREC-I TO CM-CUST.
+           READ CUSMST INVALID KEY GO TO 4000-NEW.
+           MOVE B"1" TO WS-IND(51).
+           MOVE WS-MSG(5) TO WS-DTL-MSG.
+           GO TO 4000-SHOW.
+       4000-NEW.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 4000-SHOW.
+           INITIALIZE CUSMST-REC.
+           MOVE D1CUST OF DTLREC-I TO CM-CUST.
+           PERFORM 7100-SCREEN-TO-FILE THRU 7100-EXIT.
+           MOVE SPACE TO CM-STAT.
+           MOVE WS-MDY TO CM-CRDT.
+           MOVE WS-MDY TO CM-CHDT.
+           MOVE "NWC100" TO CM-CHUS.
+           WRITE CUSMST-REC
+               INVALID KEY MOVE WS-MSG(5) TO WS-MSG-LINE
+                           GO TO 4000-EXIT.
+           MOVE WS-MSG(3) TO WS-MSG-LINE.
+       4000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  5000 - DELETE (LOGICAL - STATUS D)
+      *---------------------------------------------------------------
+       5000-DELETE.
+           MOVE WS-KEY TO CM-CUST.
+           READ CUSMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 5000-EXIT.
+           INITIALIZE DLTREC-O-AREA.
+           MOVE CM-CUST TO D2KEY OF DLTREC-O.
+           MOVE CM-NAME TO D2NAME OF DLTREC-O.
+           MOVE "N" TO D2CONF OF DLTREC-O.
+           WRITE DSP-REC FROM DLTREC-O-AREA FORMAT IS "DLTREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DLTREC-I-AREA FORMAT IS "DLTREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-IND(12) = B"1" GO TO 5000-EXIT.
+           IF D2CONF OF DLTREC-I NOT = "Y" GO TO 5000-EXIT.
+           MOVE "D" TO CM-STAT.
+           MOVE WS-MDY TO CM-CHDT.
+           MOVE "NWC100" TO CM-CHUS.
+           REWRITE CUSMST-REC INVALID KEY GO TO 5000-EXIT.
+           MOVE WS-MSG(4) TO WS-MSG-LINE.
+       5000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  6000 - DISPLAY ONLY (STILL READS FOR UPDATE)
+      *---------------------------------------------------------------
+       6000-DISPLAY.
+           MOVE WS-KEY TO CM-CUST.
+           READ CUSMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 6000-EXIT.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "DISPLAY" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE B"1" TO WS-IND(41).
+           PERFORM 7000-FILE-TO-SCREEN THRU 7000-EXIT.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+       6000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8100 - ORDERS FOR THIS CUSTOMER (FILTER PASSED IN THE LDA)     AW04
+      *---------------------------------------------------------------
+       8100-ORDERS.                                                     AW04
+           ACCEPT WS-LDA FROM LDA-NAME.                                 AW04
+           MOVE WS-KEY TO LDA-CUST.                                     AW04
+           DISPLAY WS-LDA UPON LDA-NAME.                                AW04
+           CALL "NWC610".                                               AW04
+       8100-EXIT.                                                       AW04
+           EXIT.                                                        AW04
+       8200-TYPES.                                                      RS08
+           MOVE WS-KEY TO WS-CALL-CUST.                                 RS08
+           CALL "NWC520" USING WS-CALL-CUST.                            RS08
+       8200-EXIT.                                                       RS08
+           EXIT.                                                        RS08
+      *---------------------------------------------------------------
+      *  7000 - FILE TO SCREEN
+      *---------------------------------------------------------------
+       7000-FILE-TO-SCREEN.
+           MOVE CM-CUST TO D1CUST OF DTLREC-O.
+           MOVE CM-NAME TO D1NAME OF DTLREC-O.
+           MOVE CM-CONT TO D1CONT OF DTLREC-O.
+           MOVE CM-TITL TO D1TITL OF DTLREC-O.
+           MOVE CM-ADDR TO D1ADDR OF DTLREC-O.
+           MOVE CM-CITY TO D1CITY OF DTLREC-O.
+           MOVE CM-REGN TO D1REGN OF DTLREC-O.
+           MOVE CM-POST TO D1POST OF DTLREC-O.
+           MOVE CM-CNTY TO D1CNTY OF DTLREC-O.
+           MOVE CM-PHON TO D1PHON OF DTLREC-O.
+           MOVE CM-FAX TO D1FAX OF DTLREC-O.
+       7000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7100 - SCREEN TO FILE (KEY IS NOT MOVED)
+      *---------------------------------------------------------------
+       7100-SCREEN-TO-FILE.
+           MOVE D1NAME OF DTLREC-I TO CM-NAME.
+           MOVE D1CONT OF DTLREC-I TO CM-CONT.
+           MOVE D1TITL OF DTLREC-I TO CM-TITL.
+           MOVE D1ADDR OF DTLREC-I TO CM-ADDR.
+           MOVE D1CITY OF DTLREC-I TO CM-CITY.
+           MOVE D1REGN OF DTLREC-I TO CM-REGN.
+           MOVE D1POST OF DTLREC-I TO CM-POST.
+           MOVE D1CNTY OF DTLREC-I TO CM-CNTY.
+           MOVE D1PHON OF DTLREC-I TO CM-PHON.
+           MOVE D1FAX OF DTLREC-I TO CM-FAX.
+       7100-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7500 - SHOW THE DETAIL SCREEN AND READ IT BACK
+      *---------------------------------------------------------------
+       7500-SHOW-DETAIL.
+           MOVE WS-DTL-MSG TO D1MSG OF DTLREC-O.
+           WRITE DSP-REC FROM DTLREC-O-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DTLREC-I-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+      *  KEEP WHAT THE USER TYPED IN CASE WE HAVE TO SHOW IT AGAIN
+           MOVE CORRESPONDING DTLREC-I TO DTLREC-O.
+           MOVE SPACES TO WS-DTL-MSG.
+           PERFORM VARYING WS-X FROM 51 BY 1 UNTIL WS-X > 66
+               MOVE B"0" TO WS-IND(WS-X)
+           END-PERFORM.
+       7500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8000 - EDIT THE SCREEN (STOPS AT THE FIRST ERROR)
+      *---------------------------------------------------------------
+       8000-EDIT.
+           MOVE "N" TO WS-ERR.
+           IF D1NAME OF DTLREC-I = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(52)
+               MOVE WS-MSG(7) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF D1CNTY OF DTLREC-I = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(59)
+               MOVE WS-MSG(8) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF D1PHON OF DTLREC-I IS NOT PHONE-CHARS
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(60)
+               MOVE WS-MSG(10) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF D1FAX OF DTLREC-I IS NOT PHONE-CHARS
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(61)
+               MOVE WS-MSG(10) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+       8000-EXIT.
+           EXIT.

@@ -1,0 +1,63 @@
+     A* ********************************************************************
+     A* NWC510D - Employee Territories
+     A* ********************************************************************
+     A* INDARA - USED BY COBOL WITH WORKSTATION-NWC510D-SI
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      PRINT
+     A                                      CA03(03 'Exit')
+     A                                      CA12(12 'Cancel')
+     A          R SFLREC                    SFL
+     A            S1OPT          1A  B  8  3
+     A                                      VALUES(' ' '4')
+     A            S1CODE        10A  O  8  6
+     A            S1DESC        50A  O  8 18
+     A            H1CODE        10A  H
+     A          R SFLCTL                    SFLCTL(SFLREC)
+     A                                      SFLSIZ(0101)
+     A                                      SFLPAG(0012)
+     A                                      CA06(06 'Add')
+     A                                      OVERLAY
+     A  31                                  SFLDSP
+     A  32                                  SFLDSPCTL
+     A  33                                  SFLCLR
+     A  34                                  SFLEND
+     A                                  1  2'NWC510D'
+     A                                  1 30'Employee Territories'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3  2'Employee'
+     A            C1KEY          5A  O  3 14
+     A                                      DSPATR(HI)
+     A            C1NAME        40A  O  3 21
+     A                                  5  2'Options: 4=Remove'
+     A                                      COLOR(BLU)
+     A                                  7  2'Opt'
+     A                                      DSPATR(HI UL)
+     A                                  7  6'Code'
+     A                                      DSPATR(HI UL)
+     A                                  7 18'Description'
+     A                                      DSPATR(HI UL)
+     A          R FMT01                     OVERLAY
+     A                                 22  2'F3=Exit   F6=Add   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            MSGLIN        78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R ADDREC
+     A                                  1  2'NWC510D'
+     A                                  1 30'Employee Territories'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  6 10'Territory code . . . .'
+     A            A1CODE        10A  B  6 34
+     A  51                                  DSPATR(RI PC)
+     A            A1MSG         78A  O 23  2
+     A                                      DSPATR(HI)
+     A                                 22  2'Enter=Add   F12=Cancel'
+     A                                      COLOR(BLU)

@@ -1,0 +1,17 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER PRDMSTCP  PRODUCT MASTER
+      *  LAYOUT MUST MATCH FILE PRDMST - CHANGE BOTH TOGETHER
+      *  KEY: PMPRD#
+      *----------------------------------------------------------------
+       01  PRDMST-REC.
+           05  PM-KEY.
+               10  PM-PRD-NO            PIC S9(5) COMP-3.
+           05  PM-NAME              PIC X(40).
+           05  PM-SUP-NO            PIC S9(5) COMP-3.
+           05  PM-CATG              PIC S9(3).
+           05  PM-QPU               PIC X(20).
+           05  PM-PRIC              PIC S9(7)V9(2) COMP-3.
+           05  PM-STCK              PIC S9(5) COMP-3.
+           05  PM-ONOR              PIC S9(5) COMP-3.
+           05  PM-ROLV              PIC S9(5) COMP-3.
+           05  PM-DISC              PIC X(1).

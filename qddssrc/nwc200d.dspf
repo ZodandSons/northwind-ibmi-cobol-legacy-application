@@ -1,0 +1,198 @@
+     A* ********************************************************************
+     A* NWC200D - Employee Master Maintenance
+     A* ********************************************************************
+     A* INDARA - USED BY COBOL WITH WORKSTATION-NWC200D-SI
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      PRINT
+     A                                      CA03(03 'Exit')
+     A                                      CA12(12 'Cancel')
+     A          R SFLREC                    SFL
+     A            S1OPT          1A  B  8  3
+     A                                      VALUES(' ' '2' '4' '5' '7' '9')
+     A            S1EMP          5Y 0O  8  7
+     A                                      EDTCDE(Z)
+     A            S1LNAM        20A  O  8 14
+     A            S1FNAM        10A  O  8 36
+     A            S1TITL        30A  O  8 48
+     A            H1KEY          5S 0H
+     A          R SFLCTL                    SFLCTL(SFLREC)
+     A                                      SFLSIZ(0301)
+     A                                      SFLPAG(0012)
+     A                                      CA06(06 'Add')
+     A                                      OVERLAY
+     A  31                                  SFLDSP
+     A  32                                  SFLDSPCTL
+     A  33                                  SFLCLR
+     A  34                                  SFLEND
+     A                                  1  2'NWC200D'
+     A                                  1 26'Employee Master Maintenance'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3  2'Position to name . .'
+     A            C1POS         20A  B  3 23
+     A                                  5  2'2=Change 4=Delete 5=Display'
+     A                                      COLOR(BLU)
+     A                                  5 30'7=Notes 9=Territories'
+     A                                      COLOR(BLU)
+     A                                  7  2'Opt'
+     A                                      DSPATR(HI UL)
+     A                                  7  7'Emp#'
+     A                                      DSPATR(HI UL)
+     A                                  7 14'Last name'
+     A                                      DSPATR(HI UL)
+     A                                  7 36'First name'
+     A                                      DSPATR(HI UL)
+     A                                  7 48'Title'
+     A                                      DSPATR(HI UL)
+     A          R FMT01                     OVERLAY
+     A                                 22  2'F3=Exit   F6=Add   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            MSGLIN        78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R DTLREC
+     A                                  1  2'NWC200D'
+     A                                  1 26'Employee Master Maintenance'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A            D1MODE        10A  O  3  2
+     A                                      DSPATR(RI)
+     A                                  5  2'Employee no. . .'
+     A            D1EMP          5Y 0B  5 20
+     A                                      EDTCDE(Z)
+     A  41                                  DSPATR(PR)
+     A  40                                  DSPATR(PR)
+     A  51                                  DSPATR(RI PC)
+     A                                  6  2'Last name . . .'
+     A            D1LNAM        20A  B  6 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  52                                  DSPATR(RI PC)
+     A                                  7  2'First name . . .'
+     A            D1FNAM        10A  B  7 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  53                                  DSPATR(RI PC)
+     A                                  8  2'Title . . . . .'
+     A            D1TITL        30A  B  8 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  54                                  DSPATR(RI PC)
+     A                                  9  2'Courtesy . . . .'
+     A            D1CRTS        25A  B  9 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  55                                  DSPATR(RI PC)
+     A                                 10  2'Birth date . . .'
+     A            D1BDAT         8Y 0B 10 20
+     A                                      EDTWRD('  /  /    ')
+     A  41                                  DSPATR(PR)
+     A  56                                  DSPATR(RI PC)
+     A                                 10 32'MMDDYYYY'
+     A                                      COLOR(BLU)
+     A                                 11  2'Hire date . . .'
+     A            D1HDAT         8Y 0B 11 20
+     A                                      EDTWRD('  /  /    ')
+     A  41                                  DSPATR(PR)
+     A  57                                  DSPATR(RI PC)
+     A                                 11 32'MMDDYYYY'
+     A                                      COLOR(BLU)
+     A                                 12  2'Address . . . .'
+     A            D1ADDR        60A  B 12 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  58                                  DSPATR(RI PC)
+     A                                 13  2'City . . . . . .'
+     A            D1CITY        15A  B 13 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  59                                  DSPATR(RI PC)
+     A                                 14  2'Region . . . . .'
+     A            D1REGN        15A  B 14 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  60                                  DSPATR(RI PC)
+     A                                 15  2'Postal code . .'
+     A            D1POST        10A  B 15 20
+     A  41                                  DSPATR(PR)
+     A  61                                  DSPATR(RI PC)
+     A                                 16  2'Country . . . .'
+     A            D1CNTY        15A  B 16 20
+     A                                      CHECK(LC)
+     A  41                                  DSPATR(PR)
+     A  62                                  DSPATR(RI PC)
+     A                                 17  2'Home phone . . .'
+     A            D1HPHN        24A  B 17 20
+     A  41                                  DSPATR(PR)
+     A  63                                  DSPATR(RI PC)
+     A                                 18  2'Extension . . .'
+     A            D1EXT          4A  B 18 20
+     A  41                                  DSPATR(PR)
+     A  64                                  DSPATR(RI PC)
+     A                                 19  2'Reports to . . .'
+     A            D1RPTO         5Y 0B 19 20
+     A                                      EDTCDE(Z)
+     A  41                                  DSPATR(PR)
+     A  65                                  DSPATR(RI PC)
+     A            D1RPNM        30A  O 19 28
+     A                                 22  2'F3=Exit   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            D1MSG         78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R DLTREC
+     A                                  1  2'NWC200D'
+     A                                  1 26'Employee Master Maintenance'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  6 10'Delete employee'
+     A                                      DSPATR(HI)
+     A            D2KEY          5A  O  6 30
+     A            D2NAME        40A  O  7 30
+     A                                 10 10'Are you sure (Y/N) ?'
+     A            D2CONF         1A  B 10 32
+     A                                      VALUES('Y' 'N')
+     A                                 22  2'F12=Cancel'
+     A                                      COLOR(BLU)
+     A          R NOTREC
+     A                                  1  2'NWC200D'
+     A                                  1 33'Employee Notes'
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  2  2USER
+     A                                  2 72TIME
+     A                                  3  2'Employee'
+     A            N0EMP          5Y 0O  3 12
+     A                                      EDTCDE(Z)
+     A            N0NAME        30A  O  3 19
+     A            N01           60A  B  6 10
+     A                                      CHECK(LC)
+     A            N02           60A  B  7 10
+     A                                      CHECK(LC)
+     A            N03           60A  B  8 10
+     A                                      CHECK(LC)
+     A            N04           60A  B  9 10
+     A                                      CHECK(LC)
+     A            N05           60A  B 10 10
+     A                                      CHECK(LC)
+     A            N06           60A  B 11 10
+     A                                      CHECK(LC)
+     A            N07           60A  B 12 10
+     A                                      CHECK(LC)
+     A            N08           60A  B 13 10
+     A                                      CHECK(LC)
+     A            N09           60A  B 14 10
+     A                                      CHECK(LC)
+     A            N10           60A  B 15 10
+     A                                      CHECK(LC)
+     A                                 22  2'Enter=Save   F12=Cancel'
+     A                                      COLOR(BLU)

@@ -1,0 +1,12 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER CODTBLCP  GENERAL CODE TABLE
+      *  LAYOUT MUST MATCH FILE CODTBL - CHANGE BOTH TOGETHER
+      *  KEY: CTTYPE, CTCODE
+      *----------------------------------------------------------------
+       01  CODTBL-REC.
+           05  CT-KEY.
+               10  CT-TYPE              PIC X(3).
+               10  CT-CODE              PIC X(10).
+           05  CT-DESC              PIC X(60).
+           05  CT-ALT1              PIC X(30).
+           05  CT-ALT2              PIC X(10).

@@ -1,0 +1,71 @@
+     A* ********************************************************************
+     A* NWC500D - Code table maintenance
+     A* ********************************************************************
+     A* INDARA - USED BY COBOL WITH WORKSTATION-NWC500D-SI
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A                                      PRINT
+     A                                      CA03(03 'Exit')
+     A                                      CA12(12 'Cancel')
+     A          R SFLREC                    SFL
+     A            S1OPT          1A  B  8  3
+     A                                      VALUES(' ' '2' '4')
+     A            S1CODE        10A  O  8  6
+     A            S1DESC        40A  O  8 18
+     A            S1ALT         20A  O  8 60
+     A            H1CODE        10A  H
+     A          R SFLCTL                    SFLCTL(SFLREC)
+     A                                      SFLSIZ(0201)
+     A                                      SFLPAG(0012)
+     A                                      CA06(06 'Add')
+     A                                      OVERLAY
+     A  31                                  SFLDSP
+     A  32                                  SFLDSPCTL
+     A  33                                  SFLCLR
+     A  34                                  SFLEND
+     A                                  1  2'NWC500D'
+     A            C1TITL        30A  O  1 26
+     A                                      DSPATR(HI)
+     A                                  1 72DATE
+     A                                      EDTCDE(Y)
+     A                                  5  2'Options: 2=Change  4=Delete'
+     A                                      COLOR(BLU)
+     A                                  7  2'Opt'
+     A                                      DSPATR(HI UL)
+     A                                  7  6'Code'
+     A                                      DSPATR(HI UL)
+     A                                  7 18'Description'
+     A                                      DSPATR(HI UL)
+     A            C1ALTH        20A  O  7 60
+     A                                      DSPATR(HI UL)
+     A          R FMT01                     OVERLAY
+     A                                 22  2'F3=Exit   F6=Add   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            MSGLIN        78A  O 23  2
+     A                                      DSPATR(HI)
+     A          R DTLREC
+     A                                  1  2'NWC500D'
+     A            D1TITL        30A  O  1 26
+     A                                      DSPATR(HI)
+     A            D1MODE        10A  O  3  2
+     A                                      DSPATR(RI)
+     A                                  5  2'Code . . . . . .'
+     A            D1CODE        10A  B  5 20
+     A  40                                  DSPATR(PR)
+     A  51                                  DSPATR(RI PC)
+     A                                  6  2'Description  . .'
+     A            D1DESC        60A  B  6 20
+     A                                      CHECK(LC)
+     A  52                                  DSPATR(RI PC)
+     A            D1L1          16A  O  7  2
+     A            D1ALT1        30A  B  7 20
+     A                                      CHECK(LC)
+     A  61                                  DSPATR(ND PR)
+     A            D1L2          16A  O  8  2
+     A            D1ALT2        10A  B  8 20
+     A  62                                  DSPATR(ND PR)
+     A  54                                  DSPATR(RI PC)
+     A                                 22  2'F3=Exit   F12=Cancel'
+     A                                      COLOR(BLU)
+     A            D1MSG         78A  O 23  2
+     A                                      DSPATR(HI)

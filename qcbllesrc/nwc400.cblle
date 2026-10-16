@@ -1,0 +1,442 @@
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID.    NWC400.
+       AUTHOR.        P. GONZALES.
+       INSTALLATION.  NORTHWIND TRADERS - DALLAS DIVISION.
+       DATE-WRITTEN.  06/20/91.
+      ****************************************************************
+      *  PRODUCT MASTER MAINTENANCE
+      *
+      *  MODIFICATION LOG
+      *  06/20/91 PG         CLONED FROM NWC300
+      *  09/30/95 PG   PG95  MOVED TO NORTHWIND FILES (PRDMST)
+      *  08/14/98 AW   AW98  CATEGORY NOW IN CODTBL (TYPE CAT)
+      *
+      *  INDICATORS (WS-IND):  03 EXIT  06 ADD  12 CANCEL
+      *    31 SFLDSP  32 SFLDSPCTL  33 SFLCLR  34 SFLEND
+      *    40 PROTECT KEY  41 PROTECT ALL  51-66 FIELD IN ERROR
+      ****************************************************************
+       ENVIRONMENT DIVISION.
+       CONFIGURATION SECTION.
+       SOURCE-COMPUTER. IBM-AS400.
+       OBJECT-COMPUTER. IBM-AS400.
+       SPECIAL-NAMES.
+           CLASS PHONE-CHARS IS "0" THRU "9" " " "(" ")" "-" "." "+".
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT DSPFILE ASSIGN TO WORKSTATION-NWC400D-SI
+               ORGANIZATION IS TRANSACTION
+               ACCESS MODE IS DYNAMIC
+               RELATIVE KEY IS WS-RRN
+               FILE STATUS IS WS-DSP-STAT.
+           SELECT PRDMST ASSIGN TO DATABASE-PRDMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS PM-KEY
+               FILE STATUS IS WS-PF-STAT.
+           SELECT PRDMSTL1 ASSIGN TO DATABASE-PRDMSTL1
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS PL-KEY
+               WITH DUPLICATES
+               FILE STATUS IS WS-LF-STAT.
+           SELECT SUPMST ASSIGN TO DATABASE-SUPMST
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS RANDOM
+               RECORD KEY IS SM-KEY
+               FILE STATUS IS WS-SUP-STAT.
+           SELECT CODTBL ASSIGN TO DATABASE-CODTBL                      AW98
+               ORGANIZATION IS INDEXED                                  AW98
+               ACCESS MODE IS RANDOM                                    AW98
+               RECORD KEY IS CT-KEY                                     AW98
+               FILE STATUS IS WS-COD-STAT.                              AW98
+       DATA DIVISION.
+       FILE SECTION.
+       FD  DSPFILE
+           LABEL RECORDS ARE OMITTED.
+       01  DSP-REC                     PIC X(2000).
+       FD  PRDMST
+           LABEL RECORDS ARE STANDARD.
+           COPY PRDMSTCP.
+       FD  PRDMSTL1
+           LABEL RECORDS ARE STANDARD.
+           COPY PRDL1CP.
+       FD  SUPMST
+           LABEL RECORDS ARE STANDARD.
+           COPY SUPMSTCP.
+       FD  CODTBL                                                       AW98
+           LABEL RECORDS ARE STANDARD.                                  AW98
+           COPY CODTBLCP.                                               AW98
+       WORKING-STORAGE SECTION.
+       77  WS-RRN                      PIC 9(4)  VALUE ZERO.
+       77  WS-X                        PIC 9(3)  VALUE ZERO.
+       77  WS-DSP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-PF-STAT                  PIC XX    VALUE SPACES.
+       77  WS-LF-STAT                  PIC XX    VALUE SPACES.
+       77  WS-ERR                      PIC X     VALUE "N".
+       77  WS-SAVE-POS                 PIC X(20) VALUE SPACES.
+       77  WS-MSG-LINE                 PIC X(78) VALUE SPACES.
+       77  WS-DTL-MSG                  PIC X(78) VALUE SPACES.
+       77  WS-KEY                      PIC S9(5) VALUE ZERO.
+       77  WS-HIGH                     PIC S9(5) VALUE ZERO.
+       01  WS-TODAY-AREA.
+           05  WS-TODAY                PIC 9(6).
+           05  WS-TODAY-R REDEFINES WS-TODAY.
+               10  WS-T-YY             PIC 99.
+               10  WS-T-MM             PIC 99.
+               10  WS-T-DD             PIC 99.
+       01  WS-MDY                      PIC 9(6)  VALUE ZERO.
+      *  INDICATOR AREA FOR THE -SI DISPLAY FILE
+       01  WS-IND-AREA.
+           05  WS-IND      PIC 1 OCCURS 99 TIMES INDICATOR 1.
+       01  SFLREC-I-AREA.
+           COPY DDS-SFLREC-I OF NWC400D.
+       01  SFLREC-O-AREA.
+           COPY DDS-SFLREC-O OF NWC400D.
+       01  SFLCTL-I-AREA.
+           COPY DDS-SFLCTL-I OF NWC400D.
+       01  SFLCTL-O-AREA.
+           COPY DDS-SFLCTL-O OF NWC400D.
+       01  FMT01-O-AREA.
+           COPY DDS-FMT01-O OF NWC400D.
+       01  DTLREC-I-AREA.
+           COPY DDS-DTLREC-I OF NWC400D.
+       01  DTLREC-O-AREA.
+           COPY DDS-DTLREC-O OF NWC400D.
+       01  DLTREC-I-AREA.
+           COPY DDS-DLTREC-I OF NWC400D.
+       01  DLTREC-O-AREA.
+           COPY DDS-DLTREC-O OF NWC400D.
+      *  MESSAGES
+       01  WS-MSG-VALUES.
+           05  FILLER                  PIC X(40) VALUE
+               "PRODUCT NOT FOUND".
+           05  FILLER                  PIC X(40) VALUE
+               "PRODUCT CHANGED".
+           05  FILLER                  PIC X(40) VALUE
+               "PRODUCT ADDED".
+           05  FILLER                  PIC X(40) VALUE
+               "PRODUCT DELETED".
+           05  FILLER                  PIC X(40) VALUE
+               "PRODUCT ALREADY ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "NO PRODUCTS ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "PRODUCT NAME IS REQUIRED".
+           05  FILLER                  PIC X(40) VALUE
+               "SUPPLIER NOT ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "CATEGORY NOT ON FILE".
+           05  FILLER                  PIC X(40) VALUE
+               "DISCONTINUED MUST BE Y OR N".
+       01  WS-MSG-TABLE REDEFINES WS-MSG-VALUES.
+           05  WS-MSG                  PIC X(40) OCCURS 10 TIMES.
+       77  WS-SUP-STAT                 PIC XX    VALUE SPACES.
+       77  WS-COD-STAT                 PIC XX    VALUE SPACES.
+       77  WS-CAT3                     PIC 9(3)  VALUE ZERO.
+       PROCEDURE DIVISION.
+       0000-MAINLINE.
+           OPEN I-O DSPFILE.
+           OPEN I-O PRDMST.
+           OPEN INPUT PRDMSTL1.
+           OPEN INPUT SUPMST CODTBL.
+           ACCEPT WS-TODAY FROM DATE.
+           COMPUTE WS-MDY = WS-T-MM * 10000 + WS-T-DD * 100 + WS-T-YY.
+           MOVE ALL "0" TO WS-IND-AREA.
+           INITIALIZE SFLCTL-I-AREA SFLCTL-O-AREA.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+       0100-SHOW-LIST.
+           MOVE WS-MSG-LINE TO MSGLIN OF FMT01-O.
+           WRITE DSP-REC FROM FMT01-O-AREA FORMAT IS "FMT01"
+               INDICATORS ARE WS-IND-AREA.
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO SFLCTL-I-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE SPACES TO WS-MSG-LINE.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 9000-END-PGM.
+           IF WS-IND(06) = B"1"
+               PERFORM 4000-ADD THRU 4000-EXIT
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           IF C1POS OF SFLCTL-I NOT = WS-SAVE-POS
+               PERFORM 1000-LOAD-SFL THRU 1000-EXIT
+               GO TO 0100-SHOW-LIST.
+           PERFORM 2000-OPTIONS THRU 2000-EXIT.
+           PERFORM 1000-LOAD-SFL THRU 1000-EXIT.
+           GO TO 0100-SHOW-LIST.
+       9000-END-PGM.
+           CLOSE DSPFILE PRDMST PRDMSTL1 SUPMST CODTBL.
+           GOBACK.
+      *---------------------------------------------------------------
+      *  1000 - LOAD THE SUBFILE FROM THE POSITION-TO NAME (MAX 500)
+      *---------------------------------------------------------------
+       1000-LOAD-SFL.
+           MOVE B"1" TO WS-IND(33).
+           MOVE B"0" TO WS-IND(31).
+           MOVE B"0" TO WS-IND(32).
+           WRITE DSP-REC FROM SFLCTL-O-AREA FORMAT IS "SFLCTL"
+               INDICATORS ARE WS-IND-AREA.
+           MOVE B"0" TO WS-IND(33).
+           MOVE ZERO TO WS-RRN.
+           MOVE C1POS OF SFLCTL-I TO WS-SAVE-POS.
+           MOVE WS-SAVE-POS TO C1POS OF SFLCTL-O.
+           MOVE SPACES TO PL-KEY.
+           MOVE WS-SAVE-POS TO PL-NAME.
+           START PRDMSTL1 KEY IS NOT LESS THAN PL-KEY
+               INVALID KEY GO TO 1000-DONE.
+       1000-READ.
+           READ PRDMSTL1 NEXT RECORD AT END GO TO 1000-DONE.
+           ADD 1 TO WS-RRN.
+           MOVE SPACE TO S1OPT OF SFLREC-O.
+           MOVE PL-PRD-NO TO S1PRD OF SFLREC-O.
+           MOVE PL-NAME TO S1NAME OF SFLREC-O.
+           MOVE PL-PRIC TO S1PRIC OF SFLREC-O.
+           MOVE PL-STCK TO S1STCK OF SFLREC-O.
+           MOVE PL-DISC TO S1DISC OF SFLREC-O.
+           MOVE PL-PRD-NO TO H1KEY OF SFLREC-O.
+           WRITE SUBFILE DSP-REC FROM SFLREC-O-AREA FORMAT IS "SFLREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-RRN < 500 GO TO 1000-READ.
+       1000-DONE.
+           MOVE B"1" TO WS-IND(32).
+           MOVE B"1" TO WS-IND(34).
+           IF WS-RRN > ZERO
+               MOVE B"1" TO WS-IND(31)
+           ELSE
+               MOVE WS-MSG(6) TO WS-MSG-LINE.
+       1000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  2000 - PROCESS OPTIONS TYPED IN THE SUBFILE
+      *---------------------------------------------------------------
+       2000-OPTIONS.
+           READ SUBFILE DSPFILE NEXT MODIFIED RECORD
+               INTO SFLREC-I-AREA FORMAT IS "SFLREC"
+               AT END GO TO 2000-EXIT.
+           MOVE H1KEY OF SFLREC-I TO WS-KEY.
+           IF S1OPT OF SFLREC-I = "2"
+               PERFORM 3000-CHANGE THRU 3000-EXIT.
+           IF S1OPT OF SFLREC-I = "4"
+               PERFORM 5000-DELETE THRU 5000-EXIT.
+           IF S1OPT OF SFLREC-I = "5"
+               PERFORM 6000-DISPLAY THRU 6000-EXIT.
+           GO TO 2000-OPTIONS.
+       2000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  3000 - CHANGE.  RECORD STAYS LOCKED WHILE THE SCREEN IS UP
+      *---------------------------------------------------------------
+       3000-CHANGE.
+           MOVE WS-KEY TO PM-PRD-NO.
+           READ PRDMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "CHANGE" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE B"0" TO WS-IND(41).
+           PERFORM 7000-FILE-TO-SCREEN THRU 7000-EXIT.
+       3000-SHOW.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 3000-EXIT.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 3000-SHOW.
+      *  READ AGAIN - EDIT MAY HAVE READ OTHER RECORDS OF THIS FILE
+           MOVE WS-KEY TO PM-PRD-NO.
+           READ PRDMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           PERFORM 7100-SCREEN-TO-FILE THRU 7100-EXIT.
+           REWRITE PRDMST-REC
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 3000-EXIT.
+           MOVE WS-MSG(2) TO WS-MSG-LINE.
+       3000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4000 - ADD
+      *---------------------------------------------------------------
+       4000-ADD.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "ADD" TO D1MODE OF DTLREC-O.
+           MOVE B"0" TO WS-IND(40).
+           MOVE B"0" TO WS-IND(41).
+           PERFORM 4500-NEXT-NUMBER THRU 4500-EXIT.
+           ADD 1 TO WS-HIGH GIVING D1PRD OF DTLREC-O.
+           MOVE "N" TO D1DISC OF DTLREC-O.
+       4000-SHOW.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+           IF WS-IND(03) = B"1" OR WS-IND(12) = B"1"
+               GO TO 4000-EXIT.
+           IF D1PRD OF DTLREC-I = ZERO
+               MOVE B"1" TO WS-IND(51)
+               MOVE WS-MSG(9) TO WS-DTL-MSG
+               GO TO 4000-SHOW.
+      *  DUPLICATE CHECK (A FOUND RECORD IS NOW LOCKED)
+           MOVE D1PRD OF DTLREC-I TO PM-PRD-NO.
+           READ PRDMST INVALID KEY GO TO 4000-NEW.
+           MOVE B"1" TO WS-IND(51).
+           MOVE WS-MSG(5) TO WS-DTL-MSG.
+           GO TO 4000-SHOW.
+       4000-NEW.
+           PERFORM 8000-EDIT THRU 8000-EXIT.
+           IF WS-ERR = "Y" GO TO 4000-SHOW.
+           INITIALIZE PRDMST-REC.
+           MOVE D1PRD OF DTLREC-I TO PM-PRD-NO.
+           PERFORM 7100-SCREEN-TO-FILE THRU 7100-EXIT.
+           WRITE PRDMST-REC
+               INVALID KEY MOVE WS-MSG(5) TO WS-MSG-LINE
+                           GO TO 4000-EXIT.
+           MOVE WS-MSG(3) TO WS-MSG-LINE.
+       4000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  4500 - NEXT NUMBER = HIGHEST ON FILE + 1 (READS WHOLE FILE)
+      *---------------------------------------------------------------
+       4500-NEXT-NUMBER.
+           MOVE ZERO TO WS-HIGH.
+           MOVE ZERO TO PM-PRD-NO.
+           START PRDMST KEY IS NOT LESS THAN PM-KEY
+               INVALID KEY GO TO 4500-EXIT.
+       4500-READ.
+           READ PRDMST NEXT RECORD AT END GO TO 4500-EXIT.
+           IF PM-PRD-NO > WS-HIGH MOVE PM-PRD-NO TO WS-HIGH.
+           GO TO 4500-READ.
+       4500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  5000 - DELETE (NO WHERE-USED CHECK)
+      *---------------------------------------------------------------
+       5000-DELETE.
+           MOVE WS-KEY TO PM-PRD-NO.
+           READ PRDMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 5000-EXIT.
+           INITIALIZE DLTREC-O-AREA.
+           MOVE PM-PRD-NO TO D2KEY OF DLTREC-O.
+           MOVE PM-NAME TO D2NAME OF DLTREC-O.
+           MOVE "N" TO D2CONF OF DLTREC-O.
+           WRITE DSP-REC FROM DLTREC-O-AREA FORMAT IS "DLTREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DLTREC-I-AREA FORMAT IS "DLTREC"
+               INDICATORS ARE WS-IND-AREA.
+           IF WS-IND(12) = B"1" GO TO 5000-EXIT.
+           IF D2CONF OF DLTREC-I NOT = "Y" GO TO 5000-EXIT.
+           DELETE PRDMST RECORD INVALID KEY GO TO 5000-EXIT.
+           MOVE WS-MSG(4) TO WS-MSG-LINE.
+       5000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  6000 - DISPLAY ONLY (STILL READS FOR UPDATE)
+      *---------------------------------------------------------------
+       6000-DISPLAY.
+           MOVE WS-KEY TO PM-PRD-NO.
+           READ PRDMST
+               INVALID KEY MOVE WS-MSG(1) TO WS-MSG-LINE
+                           GO TO 6000-EXIT.
+           INITIALIZE DTLREC-O-AREA.
+           MOVE "DISPLAY" TO D1MODE OF DTLREC-O.
+           MOVE B"1" TO WS-IND(40).
+           MOVE B"1" TO WS-IND(41).
+           PERFORM 7000-FILE-TO-SCREEN THRU 7000-EXIT.
+           PERFORM 7500-SHOW-DETAIL THRU 7500-EXIT.
+       6000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8500 - SUPPLIER AND CATEGORY NAMES FOR THE SCREEN
+      *         (CATEGORY 3 BECOMES CODE "003" IN CODTBL)               AW98
+      *---------------------------------------------------------------
+       8500-DESCRIPTIONS.
+           MOVE SPACES TO D1SUPN OF DTLREC-O D1CATN OF DTLREC-O.
+           MOVE D1SUP OF DTLREC-O TO SM-SUP-NO.
+           READ SUPMST INVALID KEY GO TO 8500-CAT.
+           MOVE SM-NAME TO D1SUPN OF DTLREC-O.
+       8500-CAT.
+           MOVE "CAT" TO CT-TYPE.                                       AW98
+           MOVE D1CATG OF DTLREC-O TO WS-CAT3.                          AW98
+           MOVE WS-CAT3 TO CT-CODE.                                     AW98
+           READ CODTBL INVALID KEY GO TO 8500-EXIT.                     AW98
+           MOVE CT-DESC TO D1CATN OF DTLREC-O.                          AW98
+       8500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7000 - FILE TO SCREEN
+      *---------------------------------------------------------------
+       7000-FILE-TO-SCREEN.
+           MOVE PM-PRD-NO TO D1PRD OF DTLREC-O.
+           MOVE PM-NAME TO D1NAME OF DTLREC-O.
+           MOVE PM-SUP-NO TO D1SUP OF DTLREC-O.
+           MOVE PM-CATG TO D1CATG OF DTLREC-O.
+           MOVE PM-QPU TO D1QPU OF DTLREC-O.
+           MOVE PM-PRIC TO D1PRIC OF DTLREC-O.
+           MOVE PM-STCK TO D1STCK OF DTLREC-O.
+           MOVE PM-ONOR TO D1ONOR OF DTLREC-O.
+           MOVE PM-ROLV TO D1ROLV OF DTLREC-O.
+           MOVE PM-DISC TO D1DISC OF DTLREC-O.
+           PERFORM 8500-DESCRIPTIONS THRU 8500-EXIT.
+       7000-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7100 - SCREEN TO FILE (KEY IS NOT MOVED)
+      *---------------------------------------------------------------
+       7100-SCREEN-TO-FILE.
+           MOVE D1NAME OF DTLREC-I TO PM-NAME.
+           MOVE D1SUP OF DTLREC-I TO PM-SUP-NO.
+           MOVE D1CATG OF DTLREC-I TO PM-CATG.
+           MOVE D1QPU OF DTLREC-I TO PM-QPU.
+           MOVE D1PRIC OF DTLREC-I TO PM-PRIC.
+           MOVE D1STCK OF DTLREC-I TO PM-STCK.
+           MOVE D1ONOR OF DTLREC-I TO PM-ONOR.
+           MOVE D1ROLV OF DTLREC-I TO PM-ROLV.
+           MOVE D1DISC OF DTLREC-I TO PM-DISC.
+       7100-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  7500 - SHOW THE DETAIL SCREEN AND READ IT BACK
+      *---------------------------------------------------------------
+       7500-SHOW-DETAIL.
+           MOVE WS-DTL-MSG TO D1MSG OF DTLREC-O.
+           WRITE DSP-REC FROM DTLREC-O-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+           READ DSPFILE INTO DTLREC-I-AREA FORMAT IS "DTLREC"
+               INDICATORS ARE WS-IND-AREA.
+      *  KEEP WHAT THE USER TYPED IN CASE WE HAVE TO SHOW IT AGAIN
+           MOVE CORRESPONDING DTLREC-I TO DTLREC-O.
+           MOVE SPACES TO WS-DTL-MSG.
+           PERFORM VARYING WS-X FROM 51 BY 1 UNTIL WS-X > 66
+               MOVE B"0" TO WS-IND(WS-X)
+           END-PERFORM.
+       7500-EXIT.
+           EXIT.
+      *---------------------------------------------------------------
+      *  8000 - EDIT THE SCREEN (STOPS AT THE FIRST ERROR)
+      *---------------------------------------------------------------
+       8000-EDIT.
+           MOVE "N" TO WS-ERR.
+           IF D1NAME OF DTLREC-I = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(52)
+               MOVE WS-MSG(7) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           PERFORM 8500-DESCRIPTIONS THRU 8500-EXIT.
+           IF D1SUP OF DTLREC-I NOT = ZERO
+              AND D1SUPN OF DTLREC-O = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(53)
+               MOVE WS-MSG(8) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF D1CATN OF DTLREC-O = SPACES
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(54)
+               MOVE WS-MSG(9) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+           IF D1DISC OF DTLREC-I NOT = "Y"
+              AND D1DISC OF DTLREC-I NOT = "N"
+               MOVE "Y" TO WS-ERR
+               MOVE B"1" TO WS-IND(60)
+               MOVE WS-MSG(10) TO WS-DTL-MSG
+               GO TO 8000-EXIT.
+       8000-EXIT.
+           EXIT.

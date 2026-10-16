@@ -1,0 +1,20 @@
+      *----------------------------------------------------------------
+      *  COPY MEMBER DATEPRC - CHECK A MMDDYY DATE      A.W. 06/06/01
+      *
+      *  THE PROGRAM THAT COPIES THIS MUST DEFINE:
+      *     WS-MDY6 PIC 9(6) REDEFINED AS WS-M6-MM, WS-M6-DD, WS-M6-YY
+      *     WS-MONTH-LEN PIC 99 OCCURS 12 (DAYS PER MONTH)
+      *     WS-DATE-ERR PIC X
+      *  ZERO IS A VALID (EMPTY) DATE.  FEBRUARY HAS 28 DAYS.
+      *  ONLY NWC600 USES THIS - NWC200 HAS ITS OWN VERSION.
+      *----------------------------------------------------------------
+       9500-CHECK-MDY.
+           MOVE "N" TO WS-DATE-ERR.
+           IF WS-MDY6 = ZERO GO TO 9500-EXIT.
+           IF WS-M6-MM < 1 OR WS-M6-MM > 12
+               MOVE "Y" TO WS-DATE-ERR
+               GO TO 9500-EXIT.
+           IF WS-M6-DD < 1 OR WS-M6-DD > WS-MONTH-LEN(WS-M6-MM)
+               MOVE "Y" TO WS-DATE-ERR.
+       9500-EXIT.
+           EXIT.
