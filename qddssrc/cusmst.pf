@@ -1,0 +1,23 @@
+     A* ------------------------------------------------------------
+     A* CUSMST - Customer master
+     A* 1988 created  RKM
+     A* 1999 Y2K: dates left as MMDDYY (window 40)  JS
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R CUSMSTR                   TEXT('Customer master')
+     A            CMCUST         5A         COLHDG('Customer')
+     A            CMNAME        40A         COLHDG('Company name')
+     A            CMCONT        30A         COLHDG('Contact')
+     A            CMTITL        30A         COLHDG('Contact title')
+     A            CMADDR        60A         COLHDG('Address')
+     A            CMCITY        15A         COLHDG('City')
+     A            CMREGN        15A         COLHDG('Region')
+     A            CMPOST        10A         COLHDG('Postal code')
+     A            CMCNTY        15A         COLHDG('Country')
+     A            CMPHON        24A         COLHDG('Phone')
+     A            CMFAX         24A         COLHDG('Fax')
+     A            CMSTAT         1A         COLHDG('Status D=Deleted')
+     A            CMCRDT         6S 0       COLHDG('Created MMDDYY')
+     A            CMCHDT         6S 0       COLHDG('Changed MMDDYY')
+     A            CMCHUS        10A         COLHDG('Changed by')
+     A          K CMCUST

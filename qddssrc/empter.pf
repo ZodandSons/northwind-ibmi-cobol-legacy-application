@@ -1,0 +1,9 @@
+     A* ------------------------------------------------------------
+     A* EMPTER - Employee territories
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R EMPTERR                   TEXT('Employee territories')
+     A            ETEMP#         5P 0       COLHDG('Employee')
+     A            ETTERR        10A         COLHDG('Territory')
+     A          K ETEMP#
+     A          K ETTERR

@@ -1,0 +1,14 @@
+     A* ------------------------------------------------------------
+     A* ORDDTL - Order detail lines
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R ORDDTLR                   TEXT('Order detail lines')
+     A            ODORD#         7P 0       COLHDG('Order')
+     A            ODLIN#         3P 0       COLHDG('Line')
+     A            ODPRD#         5P 0       COLHDG('Product')
+     A            ODQTY          5P 0       COLHDG('Quantity')
+     A            ODPRIC         9P 2       COLHDG('Unit price')
+     A            ODDISC         3P 2       COLHDG('Discount .xx')
+     A            ODEXT         11P 2       COLHDG('Extended')
+     A          K ODORD#
+     A          K ODLIN#

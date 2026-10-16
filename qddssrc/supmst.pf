@@ -1,0 +1,19 @@
+     A* ------------------------------------------------------------
+     A* SUPMST - Supplier master
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R SUPMSTR                   TEXT('Supplier master')
+     A            SMSUP#         5P 0       COLHDG('Supplier')
+     A            SMNAME        40A         COLHDG('Company name')
+     A            SMCONT        30A         COLHDG('Contact')
+     A            SMTITL        30A         COLHDG('Contact title')
+     A            SMADDR        60A         COLHDG('Address')
+     A            SMCITY        15A         COLHDG('City')
+     A            SMREGN        15A         COLHDG('Region')
+     A            SMPOST        10A         COLHDG('Postal code')
+     A            SMCNTY        15A         COLHDG('Country')
+     A            SMPHON        24A         COLHDG('Phone')
+     A            SMFAX         24A         COLHDG('Fax')
+     A            SMHOME        80A         COLHDG('Home page')
+     A            SMSTAT         1A         COLHDG('Status')
+     A          K SMSUP#

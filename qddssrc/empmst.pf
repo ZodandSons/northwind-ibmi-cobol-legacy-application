@@ -1,0 +1,23 @@
+     A* ------------------------------------------------------------
+     A* EMPMST - Employee master
+     A* 1991 created  DLW
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R EMPMSTR                   TEXT('Employee master')
+     A            EMEMP#         5P 0       COLHDG('Employee')
+     A            EMLNAM        20A         COLHDG('Last name')
+     A            EMFNAM        10A         COLHDG('First name')
+     A            EMTITL        30A         COLHDG('Title')
+     A            EMCRTS        25A         COLHDG('Courtesy')
+     A            EMBDAT         8P 0       COLHDG('Birth YYYYMMDD')
+     A            EMHDAT         8P 0       COLHDG('Hired YYYYMMDD')
+     A            EMADDR        60A         COLHDG('Address')
+     A            EMCITY        15A         COLHDG('City')
+     A            EMREGN        15A         COLHDG('Region')
+     A            EMPOST        10A         COLHDG('Postal code')
+     A            EMCNTY        15A         COLHDG('Country')
+     A            EMHPHN        24A         COLHDG('Home phone')
+     A            EMEXT          4A         COLHDG('Extension')
+     A            EMRPTO         5P 0       COLHDG('Reports to')
+     A            EMSTAT         1A         COLHDG('Status')
+     A          K EMEMP#

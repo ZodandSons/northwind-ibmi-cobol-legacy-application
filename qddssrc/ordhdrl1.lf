@@ -1,0 +1,6 @@
+     A* ------------------------------------------------------------
+     A* ORDHDRL1 - Orders by customer, newest first
+     A* ------------------------------------------------------------
+     A          R ORDHDRR                   PFILE(ORDHDR)
+     A          K OHCUST
+     A          K OHORD#                    DESCEND

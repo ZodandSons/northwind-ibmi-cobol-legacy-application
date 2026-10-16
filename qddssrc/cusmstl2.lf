@@ -1,0 +1,7 @@
+     A* ------------------------------------------------------------
+     A* CUSMSTL2 - Customers by country/city (report)
+     A* ------------------------------------------------------------
+     A          R CUSMSTR                   PFILE(CUSMST)
+     A          K CMCNTY
+     A          K CMCITY
+     A          K CMCUST

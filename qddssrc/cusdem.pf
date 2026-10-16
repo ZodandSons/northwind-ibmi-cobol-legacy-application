@@ -1,0 +1,9 @@
+     A* ------------------------------------------------------------
+     A* CUSDEM - Customer demographic types
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R CUSDEMR                   TEXT('Customer demographic types')
+     A            CDCUST         5A         COLHDG('Customer')
+     A            CDTYPE        10A         COLHDG('Cust type')
+     A          K CDCUST
+     A          K CDTYPE

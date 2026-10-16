@@ -1,0 +1,16 @@
+     A* ------------------------------------------------------------
+     A* PRDMST - Product master
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R PRDMSTR                   TEXT('Product master')
+     A            PMPRD#         5P 0       COLHDG('Product')
+     A            PMNAME        40A         COLHDG('Product name')
+     A            PMSUP#         5P 0       COLHDG('Supplier')
+     A            PMCATG         3S 0       COLHDG('Category')
+     A            PMQPU         20A         COLHDG('Qty per unit')
+     A            PMPRIC         9P 2       COLHDG('Unit price')
+     A            PMSTCK         5P 0       COLHDG('On hand')
+     A            PMONOR         5P 0       COLHDG('On order')
+     A            PMROLV         5P 0       COLHDG('Reorder level')
+     A            PMDISC         1A         COLHDG('Discont Y/N')
+     A          K PMPRD#

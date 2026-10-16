@@ -42,13 +42,32 @@ the two code bases have shared one database and drifted apart.
 | xxxxxxCP | copy members | Record layouts for the 10 PFs and 4 LFs | — |
 | DATEPRC | copy member | MMDDYY date check paragraph (used by NWC600 only) | DATCHK |
 
+Database (library **NWLEGDTA**):
+
+| File | Contents |
+|---|---|
+| CUSMST | Customers |
+| EMPMST | Employees |
+| EMPNOT | Employee notes, in 60-character lines |
+| SUPMST | Suppliers |
+| PRDMST | Products |
+| CODTBL | Regions, shippers, categories, territories and customer types |
+| EMPTER | Employee territories |
+| CUSDEM | Customer demographic types |
+| ORDHDR | Order headers |
+| ORDDTL | Order lines |
+
+* Logical files: CUSMSTL1/L2, EMPMSTL1/L2, SUPMSTL1, PRDMSTL1, ORDHDRL1.
+* Data areas: NWNXTORD (next order number), NWNXTPRD (next product number), NWCOMP (company name).
+
 ## Folder layout
 
 ```
 qcbllesrc/ *.cblle     ILE COBOL programs + copy members (xxxCP, DATEPRC)
 qcblsrc/   nwc700.cbl  OPM COBOL/400
-qddssrc/   *.dspf      display files (INDARA)
+qddssrc/   *.pf *.lf *.dspf       display files (INDARA)
 qclsrc/    *.clp       OPM CL
+qsqlsrc/   nwlconv.sql           one-time data conversion  (setup only)
 setup/     nwcbuild.clle   build program (setup only)
 ```
 

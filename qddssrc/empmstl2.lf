@@ -1,0 +1,6 @@
+     A* ------------------------------------------------------------
+     A* EMPMSTL2 - Employees by number (2nd copy for lookups)
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R EMPMSTR                   PFILE(EMPMST)
+     A          K EMEMP#

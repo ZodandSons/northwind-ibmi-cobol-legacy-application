@@ -1,0 +1,10 @@
+     A* ------------------------------------------------------------
+     A* EMPNOT - Employee notes lines
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R EMPNOTR                   TEXT('Employee notes lines')
+     A            ENEMP#         5P 0       COLHDG('Employee')
+     A            ENSEQ          3P 0       COLHDG('Line')
+     A            ENTEXT        60A         COLHDG('Note text')
+     A          K ENEMP#
+     A          K ENSEQ

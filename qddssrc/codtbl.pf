@@ -1,0 +1,14 @@
+     A* ------------------------------------------------------------
+     A* CODTBL - General code table
+     A* REG=region SHP=shipper(ALT1=phone) CAT=category(ALT1=descr)
+     A* TER=territory(ALT2=region code) DEM=customer type
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R CODTBLR                   TEXT('General code table')
+     A            CTTYPE         3A         COLHDG('Table')
+     A            CTCODE        10A         COLHDG('Code')
+     A            CTDESC        60A         COLHDG('Description')
+     A            CTALT1        30A         COLHDG('Alt data 1')
+     A            CTALT2        10A         COLHDG('Alt data 2')
+     A          K CTTYPE
+     A          K CTCODE

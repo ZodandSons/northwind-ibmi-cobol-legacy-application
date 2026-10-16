@@ -1,0 +1,27 @@
+     A* ------------------------------------------------------------
+     A* ORDHDR - Order header
+     A* 1989 created  RKM
+     A* 1999 Y2K: order dates converted to CYYMMDD  JS
+     A*      (OHENTD was missed and is still MMDDYY)
+     A* ------------------------------------------------------------
+     A                                      UNIQUE
+     A          R ORDHDRR                   TEXT('Order header')
+     A            OHORD#         7P 0       COLHDG('Order')
+     A            OHCUST         5A         COLHDG('Customer')
+     A            OHEMP#         5P 0       COLHDG('Employee')
+     A            OHODAT         7P 0       COLHDG('Ordered CYYMMDD')
+     A            OHRDAT         7P 0       COLHDG('Required CYYMMDD')
+     A            OHSDAT         7P 0       COLHDG('Shipped CYYMMDD')
+     A            OHSHPV         1A         COLHDG('Ship via')
+     A            OHFRT          7P 2       COLHDG('Freight')
+     A            OHSNAM        40A         COLHDG('Ship name')
+     A            OHSADR        60A         COLHDG('Ship address')
+     A            OHSCTY        15A         COLHDG('Ship city')
+     A            OHSREG        15A         COLHDG('Ship region')
+     A            OHSPST        10A         COLHDG('Ship postal')
+     A            OHSCNT        15A         COLHDG('Ship country')
+     A            OHTOTL        11P 2       COLHDG('Order total')
+     A            OHSTAT         1A         COLHDG('O/S/C')
+     A            OHENTU        10A         COLHDG('Entered by')
+     A            OHENTD         6S 0       COLHDG('Entered MMDDYY')
+     A          K OHORD#
